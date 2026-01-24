@@ -24,6 +24,7 @@ struct client_state {
   struct xdg_surface *xdg_surface;
   struct xdg_toplevel *xdg_toplevel;
   struct wl_keyboard *wl_keyboard;
+  struct wl_callback *frame_callback;
   /* State */
   float offset;
   uint32_t last_frame;
@@ -176,8 +177,8 @@ static void wl_surface_frame_done(void *data, struct wl_callback *cb,
 
   /* Request another frame */
   struct client_state *state = data;
-  cb = wl_surface_frame(state->wl_surface);
-  wl_callback_add_listener(cb, &wl_surface_frame_listener, state);
+  state->frame_callback = wl_surface_frame(state->wl_surface);
+  wl_callback_add_listener(state->frame_callback, &wl_surface_frame_listener, state);
 
   /* Update scroll amount at 24 pixels per second */
   if (state->last_frame != 0) {
@@ -351,28 +352,22 @@ int main(int argc, char *argv[]) {
   xdg_toplevel_set_title(state.xdg_toplevel, "Example client");
   wl_surface_commit(state.wl_surface);
 
-  struct wl_callback *cb = wl_surface_frame(state.wl_surface);
-  wl_callback_add_listener(cb, &wl_surface_frame_listener, &state);
+  state.frame_callback = wl_surface_frame(state.wl_surface);
+  wl_callback_add_listener(state.frame_callback, &wl_surface_frame_listener, &state);
 
   while (wl_display_dispatch(state.wl_display) && !state.closed) {
     // TODO
   }
   if (state.wl_keyboard)
     wl_keyboard_release(state.wl_keyboard);
-  wl_surface_attach(state.wl_surface, NULL, 0, 0);
-  wl_surface_commit(state.wl_surface);
+  if (state.frame_callback)
+    wl_callback_destroy(state.frame_callback);
+
   xdg_toplevel_destroy(state.xdg_toplevel);
   xdg_surface_destroy(state.xdg_surface);
   wl_surface_destroy(state.wl_surface);
-  wl_display_flush(state.wl_display); // Send destroy requests
-
-  // First roundtrip - process destroy requests
   wl_display_roundtrip(state.wl_display);
 
-  // Second roundtrip - let compositor release buffers
-  wl_display_roundtrip(state.wl_display);
-
-  // Then destroy globals
   xkb_state_unref(state.xkb_state);
   xkb_keymap_unref(state.xkb_keymap);
   xkb_context_unref(state.xkb_context);
