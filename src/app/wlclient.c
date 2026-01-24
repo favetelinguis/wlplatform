@@ -27,6 +27,8 @@ struct client_state {
   /* State */
   float offset;
   uint32_t last_frame;
+  int width, height;
+  bool closed;
   struct xkb_state *xkb_state;
   struct xkb_context *xkb_context;
   struct xkb_keymap *xkb_keymap;
@@ -82,7 +84,7 @@ static const struct wl_buffer_listener wl_buffer_listener = {
 };
 
 static struct wl_buffer *draw_frame(struct client_state *state) {
-  const int width = 640, height = 480;
+  int width = state->width, height = state->height;
   int stride = width * 4;
   int size = stride * height;
 
@@ -118,6 +120,30 @@ static struct wl_buffer *draw_frame(struct client_state *state) {
   wl_buffer_add_listener(buffer, &wl_buffer_listener, NULL);
   return buffer;
 }
+
+static void xdg_toplevel_configure(void *data,
+                                   struct xdg_toplevel *xdg_toplevel,
+                                   int32_t width, int32_t height,
+                                   struct wl_array *states) {
+  struct client_state *state = data;
+  if (width == 0 || height == 0) {
+    // Compositor is deferring to us
+    return;
+  }
+  state->width = width;
+  state->height = height;
+}
+
+static void xdg_toplevel_close(void *data, struct xdg_toplevel *toplevel) {
+  struct client_state *state = data;
+  state->closed = true;
+}
+
+static const struct xdg_toplevel_listener xdg_toplevel_listener = {
+    .configure = xdg_toplevel_configure,
+    .close = xdg_toplevel_close,
+};
+
 static void xdg_surface_configure(void *data, struct xdg_surface *xdg_surface,
                                   uint32_t serial) {
   struct client_state *state = data;
@@ -308,6 +334,8 @@ static const struct wl_registry_listener wl_registry_listener = {
 
 int main(int argc, char *argv[]) {
   struct client_state state = {0};
+  state.width = 640;
+  state.height = 480;
   state.wl_display = wl_display_connect(NULL);
   state.wl_registry = wl_display_get_registry(state.wl_display);
   state.xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
@@ -319,17 +347,41 @@ int main(int argc, char *argv[]) {
       xdg_wm_base_get_xdg_surface(state.xdg_wm_base, state.wl_surface);
   xdg_surface_add_listener(state.xdg_surface, &xdg_surface_listener, &state);
   state.xdg_toplevel = xdg_surface_get_toplevel(state.xdg_surface);
+  xdg_toplevel_add_listener(state.xdg_toplevel, &xdg_toplevel_listener, &state);
   xdg_toplevel_set_title(state.xdg_toplevel, "Example client");
   wl_surface_commit(state.wl_surface);
 
   struct wl_callback *cb = wl_surface_frame(state.wl_surface);
   wl_callback_add_listener(cb, &wl_surface_frame_listener, &state);
 
-  // At this stage the client do not react on me trying to close or resize the
-  // app using compositor.
-  while (wl_display_dispatch(state.wl_display)) {
+  while (wl_display_dispatch(state.wl_display) && !state.closed) {
     // TODO
   }
+  if (state.wl_keyboard)
+    wl_keyboard_release(state.wl_keyboard);
+  wl_surface_attach(state.wl_surface, NULL, 0, 0);
+  wl_surface_commit(state.wl_surface);
+  xdg_toplevel_destroy(state.xdg_toplevel);
+  xdg_surface_destroy(state.xdg_surface);
+  wl_surface_destroy(state.wl_surface);
+  wl_display_flush(state.wl_display); // Send destroy requests
+
+  // First roundtrip - process destroy requests
+  wl_display_roundtrip(state.wl_display);
+
+  // Second roundtrip - let compositor release buffers
+  wl_display_roundtrip(state.wl_display);
+
+  // Then destroy globals
+  xkb_state_unref(state.xkb_state);
+  xkb_keymap_unref(state.xkb_keymap);
+  xkb_context_unref(state.xkb_context);
+  wl_seat_release(state.wl_seat);
+  xdg_wm_base_destroy(state.xdg_wm_base);
+  wl_compositor_destroy(state.wl_compositor);
+  wl_shm_destroy(state.wl_shm);
+  wl_registry_destroy(state.wl_registry);
+  wl_display_disconnect(state.wl_display);
 
   return 0;
 }
