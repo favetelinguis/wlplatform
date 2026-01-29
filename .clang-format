@@ -1,0 +1,81 @@
+# Suckless coding style for C99
+# https://suckless.org/coding_style/
+
+Language: C
+Standard: Latest
+
+# Indentation: tabs for indentation
+UseTab: Always
+TabWidth: 8
+IndentWidth: 8
+
+# Line length: 79 characters max
+ColumnLimit: 79
+
+# Braces: opening brace on same line (Attach), except functions (separate)
+BreakBeforeBraces: Linux
+
+# Functions: return type on its own line
+AlwaysBreakAfterReturnType: AllDefinitions
+
+# Pointers: asterisk adjacent to variable name (char *p)
+PointerAlignment: Right
+
+# Spaces after if, for, while, switch (not function calls)
+SpaceBeforeParens: ControlStatements
+
+# No space inside parentheses
+SpacesInParentheses: false
+
+# Switch: case labels at same level as switch
+IndentCaseLabels: false
+
+# No space after cast
+SpaceAfterCStyleCast: false
+
+# Keep short functions on single line: never
+AllowShortFunctionsOnASingleLine: None
+
+# Keep short ifs on single line: never
+AllowShortIfStatementsOnASingleLine: Never
+
+# Keep short loops on single line: never
+AllowShortLoopsOnASingleLine: false
+
+# Keep short blocks on single line: never
+AllowShortBlocksOnASingleLine: Never
+
+# Align consecutive macros
+AlignConsecutiveMacros: true
+
+# Sort includes: system headers first
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  # System headers <...>
+  - Regex: '^<.*>'
+    Priority: 1
+  # Local headers "..."
+  - Regex: '^".*"'
+    Priority: 2
+
+# Don't bin-pack arguments
+BinPackArguments: false
+BinPackParameters: false
+
+# Align after open bracket
+AlignAfterOpenBracket: Align
+
+# Continuation indent (for wrapped lines)
+ContinuationIndentWidth: 4
+
+# Don't indent extern "C" blocks (not applicable for C but good default)
+IndentExternBlock: NoIndent
+
+# Keep empty lines minimal
+MaxEmptyLinesToKeep: 1
+
+# No trailing whitespace in comments
+SpacesInLineCommentPrefix:
+  Minimum: 1
+  Maximum: 1
