@@ -12,7 +12,7 @@ LIBS += -lrt  # For shm_open
 # Source files
 SRCS = src/main.c \
        src/platform/platform_wayland.c \
-       src/xdg-shell.c
+       src/protocols/xdg-shell.c
 
 # Object files (in bin/ directory)
 OBJS = $(SRCS:%.c=bin/%.o)

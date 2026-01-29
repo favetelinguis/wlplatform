@@ -22,42 +22,43 @@ struct platform;
  * Event types that the platform can generate.
  */
 enum event_type {
-  EVENT_NONE = 0,
-  EVENT_QUIT,        /* Window close requested */
-  EVENT_RESIZE,      /* Window size changed */
-  EVENT_KEY_PRESS,   /* Key pressed */
-  EVENT_KEY_RELEASE, /* Key released */
-  EVENT_FOCUS_IN,    /* Window gained keyboard focus */
-  EVENT_FOCUS_OUT,   /* Window lost keyboard focus */
+	EVENT_NONE = 0,
+	EVENT_QUIT,	   /* Window close requested */
+	EVENT_RESIZE,	   /* Window size changed */
+	EVENT_KEY_PRESS,   /* Key pressed */
+	EVENT_KEY_RELEASE, /* Key released */
+	EVENT_FOCUS_IN,	   /* Window gained keyboard focus */
+	EVENT_FOCUS_OUT,   /* Window lost keyboard focus */
 };
 
 /*
  * Modifier key flags.
  */
 #define MOD_SHIFT (1 << 0)
-#define MOD_CTRL (1 << 1)
-#define MOD_ALT (1 << 2)
+#define MOD_CTRL  (1 << 1)
+#define MOD_ALT	  (1 << 2)
 #define MOD_SUPER (1 << 3)
 
 /*
  * Platfor event structure.
  */
 struct platform_event {
-  enum event_type type;
-  uint32_t timestamp; /* Milliseconds for timing*/
-  union {
-    /* EVENT_RESIZE */
-    struct {
-      int width, height;
-    } resize;
-    /* EVENT_KEY_PRESS, EVENT_KEY_RELEASE */
-    struct {
-      uint32_t keycode;   /* Raw keycode */
-      uint32_t keysym;    /* XKB keysym (e.g., XKB_KEY_a) */
-      uint32_t modifiers; /* MOD_SHIFT | MOD_CTRL | ... */
-      uint32_t codepoint; /* UTF-32 character, or 0 if not printable */
-    } key;
-  };
+	enum event_type type;
+	uint32_t timestamp; /* Milliseconds for timing*/
+	union {
+		/* EVENT_RESIZE */
+		struct {
+			int width, height;
+		} resize;
+		/* EVENT_KEY_PRESS, EVENT_KEY_RELEASE */
+		struct {
+			uint32_t keycode;   /* Raw keycode */
+			uint32_t keysym;    /* XKB keysym (e.g., XKB_KEY_a) */
+			uint32_t modifiers; /* MOD_SHIFT | MOD_CTRL | ... */
+			uint32_t codepoint; /* UTF-32 character, or 0 if not
+					       printable */
+		} key;
+	};
 };
 
 /*
@@ -65,10 +66,10 @@ struct platform_event {
  * You draw into pixels[], then call platform_present().
  */
 struct framebuffer {
-  uint32_t *pixels; /* XRGB8888 format (0xAARRGGBB, AA ignored) */
-  int width;
-  int height;
-  int stride; /* Bytes per row (usually width * 4) */
+	uint32_t *pixels; /* XRGB8888 format (0xAARRGGBB, AA ignored) */
+	int width;
+	int height;
+	int stride; /* Bytes per row (usually width * 4) */
 };
 
 /* ============================================================
