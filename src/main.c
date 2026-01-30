@@ -20,6 +20,7 @@
 #include <xkbcommon/xkbcommon-keysyms.h>
 
 #include "platform/platform.h"
+#include "render/render_font.h"
 
 /* ============================================================
  * APPLICATION STATE
@@ -32,6 +33,7 @@ struct app_state {
 	int focused_item; /* Currently focused menu item (0 to NUM_ITEMS-1) */
 	const char *items[NUM_ITEMS];
 	bool item_activated[NUM_ITEMS];
+	struct font_ctx *font;
 };
 
 /* ============================================================
@@ -77,15 +79,23 @@ draw_rect_outline(struct framebuffer *fb,
 }
 
 static void
-draw_text_placeholder(
-    struct framebuffer *fb, int x, int y, const char *text, uint32_t color)
+draw_text(struct framebuffer *fb,
+	  struct font_ctx *font,
+	  int x,
+	  int y,
+	  const char *text,
+	  uint32_t color)
 {
-	/* Placeholder: draw a colored rectangle representing text */
-	/* Real text rendering will come in a later step */
-	int len = 0;
-	while (text[len])
-		len++;
-	draw_rect(fb, x, y, len * 10, 20, color);
+	/* y is top-left, but font_draw_text expect baseline */
+	int baseline_y = y + font_get_ascent(font);
+	font_draw_text(font,
+		       fb->pixels,
+		       fb->width,
+		       fb->height,
+		       x,
+		       baseline_y,
+		       text,
+		       color);
 }
 
 /* ============================================================
@@ -158,36 +168,42 @@ render(struct platform *p, struct app_state *app)
 	struct framebuffer *fb;
 	int i;
 	int item_height = 40;
-	int item_width = 300;
+	int item_width = 400;
 	int start_x = 50;
-	int start_y = 50;
+	int start_y = 60;
+	int line_height;
 
 	fb = platform_get_framebuffer(p);
 	if (!fb) {
 		return;
 	}
 
+	line_height = font_get_line_height(app->font);
+
 	/* Clear to dark background */
 	for (i = 0; i < fb->width * fb->height; i++) {
 		fb->pixels[i] = 0xFF1E1E1E;
 	}
 
-	/* Braw title */
-	draw_text_placeholder(
-	    fb,
-	    start_x,
-	    20,
-	    "Keyboard-Driven Menu (j/k to navigate, Enter to select)",
-	    0xFF808080);
+	/* Draw title */
+	draw_text(
+	    fb, app->font, start_x, 20, "Keyboard-Driven Menu", 0xFFFFFFFF);
+	draw_text(fb,
+		  app->font,
+		  start_x,
+		  20 + line_height,
+		  "j/k to navigate, Enter to select",
+		  0xFF808080);
 
 	/* Draw menu items */
 	for (i = 0; i < NUM_ITEMS; i++) {
 		int y = start_y + i * (item_height + 10);
 		bool focused = (i == app->focused_item);
 		bool activated = app->item_activated[i];
+		uint32_t bg_color, text_color;
 
 		/* Item background */
-		uint32_t bg_color = activated ? 0xFF2D5A2D : 0xFF2D2D2D;
+		bg_color = activated ? 0xFF2D5A2D : 0xFF2D2D2D;
 		if (focused) {
 			bg_color = activated ? 0xFF3D7A3D : 0xFF3D3D3D;
 		}
@@ -209,22 +225,36 @@ render(struct platform *p, struct app_state *app)
 					  2);
 		}
 
-		/* Item text placeholder */
-		draw_text_placeholder(fb,
-				      start_x + 20,
-				      y + 10,
-				      app->items[i],
-				      focused ? 0xFFFFFFFF : 0xFFCCCCCC);
+		/* Item text */
+		text_color = focused ? 0xFFFFFFFF : 0xFFCCCCCC;
+		draw_text(fb,
+			  app->font,
+			  start_x + 20,
+			  y + (item_height - line_height) / 2,
+			  app->items[i],
+			  text_color);
+
+		/* Status indicator */
+		if (activated) {
+			draw_text(fb,
+				  app->font,
+				  start_x + item_width - 60,
+				  y + (item_height - line_height) / 2,
+				  "[ON]",
+				  0xFF00FF00);
+		}
 	}
 
 	/* Draw mode indicator at bottom */
-	draw_text_placeholder(fb, 10, fb->height - 30, "NORMAL", 0xFF007ACC);
+	draw_rect(fb, 0, fb->height - 30, fb->width, 30, 0xFF252525);
+	draw_text(fb, app->font, 10, fb->height - 25, "NORMAL", 0xFF007ACC);
 
 	/* Draw help text */
-	draw_text_placeholder(
+	draw_text(
 	    fb,
+	    app->font,
 	    start_x,
-	    fb->height - 60,
+	    fb->height - 25,
 	    "j/k: navigate | Enter: toggle | g/G: first/last | Esc: quit",
 	    0xFF606060);
 
@@ -244,6 +274,13 @@ main(int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 
+	/* Load font */
+	app.font = font_create("assets/fonts/JetBrainsMono-Regular.ttf", 16);
+	if (!app.font) {
+		fprintf(stderr, "Failed to load font\n");
+		return 1;
+	}
+
 	/* Initialize app state */
 	app.running = true;
 	app.focused_item = 0;
@@ -257,12 +294,15 @@ main(int argc, char *argv[])
 	platform = platform_create("Keyboard-Driven UI Demo", 800, 600);
 	if (!platform) {
 		fprintf(stderr, "Failed to create platform\n");
+		font_destroy(app.font);
 		return 1;
 	}
 	printf("=== Keyboard-Driven UI Demo ===\n");
 	printf("Window size: %dx%d\n",
 	       platform_get_width(platform),
 	       platform_get_height(platform));
+	printf("Font: JetBrains Mono %dpx\n", font_get_size(app.font));
+	printf("Line height: %dpx\n", font_get_line_height(app.font));
 	printf("\nControls:\n");
 	printf("  j/Down  - Move focus down\n");
 	printf("  k/Up    - Move focus up\n");
@@ -315,14 +355,17 @@ main(int argc, char *argv[])
 		render(platform, &app);
 
 		/* Frame limiting (~60 FPS) */
-		struct timespec sleep_time = {
-		    .tv_sec = 0, .tv_nsec = 16000000 /* 16ms = ~60 FPS */
-		};
-		nanosleep(&sleep_time, NULL);
+		{
+			struct timespec sleep_time;
+			sleep_time.tv_sec = 0;
+			sleep_time.tv_nsec = 16000000;
+			nanosleep(&sleep_time, NULL);
+		}
 	}
 
 	/* Cleanup */
 	platform_destroy(platform);
+	font_destroy(app.font);
 	printf("Clean shutdown\n");
 
 	return 0;
