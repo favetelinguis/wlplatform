@@ -97,11 +97,12 @@ void platform_destroy(struct platform *p);
  * ============================================================ */
 
 /*
- * Poll for events (non-blocking).
+ * Wait for events (blocking).
  *
- * @return false if the display connection was lost
+ * @param timeout_ms  -1 = infinite, 0 = non-blocking, >0 = milliseconds
+ * @return false if display connection lost
  */
-bool platform_poll_events(struct platform *p);
+bool platform_wait_events(struct platform *p, int timeout_ms);
 
 /*
  * Get the next event from the queue.

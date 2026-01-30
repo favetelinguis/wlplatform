@@ -834,7 +834,7 @@ platform_destroy(struct platform *p)
 }
 
 bool
-platform_poll_events(struct platform *p)
+platform_wait_events(struct platform *p, int timeout_ms)
 {
 	struct pollfd fds[1];
 	int ret;
@@ -850,22 +850,21 @@ platform_poll_events(struct platform *p)
 		return false;
 	}
 
-	/* Non-blocking poll for events */
+	/* Blocking poll for events */
 	fds[0].fd = wl_display_get_fd(p->display);
 	fds[0].events = POLLIN;
 
-	ret = poll(fds, 1, 0); /* timeout = 0 for non-blocking */
+	ret = poll(fds, 1, timeout_ms); /* BLOCKS here */
 
 	if (ret > 0 && (fds[0].revents & POLLIN)) {
-		/* Events avaliable */
 		if (wl_display_read_events(p->display) < 0) {
 			return false;
 		}
 		wl_display_dispatch_pending(p->display);
 	} else {
-		/* No events or error */
 		wl_display_cancel_read(p->display);
 	}
+
 	return !p->closed;
 }
 

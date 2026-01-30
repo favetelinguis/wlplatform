@@ -11,12 +11,8 @@
  *   Ctrl+Q    - Quit
  */
 
-#define _POSIX_C_SOURCE 200809L
-
 #include <stdint.h>
 #include <stdio.h>
-#include <time.h>
-#include <unistd.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 
 #include "platform/platform.h"
@@ -30,7 +26,8 @@
 
 struct app_state {
 	bool running;
-	int focused_item; /* Currently focused menu item (0 to NUM_ITEMS-1) */
+	bool needs_redraw; /* Dirty flag - only render when true */
+	int focused_item;  /* Currently focused menu item (0 to NUM_ITEMS-1) */
 	const char *items[NUM_ITEMS];
 	bool item_activated[NUM_ITEMS];
 	struct font_ctx *font;
@@ -102,13 +99,13 @@ draw_text(struct framebuffer *fb,
  * INPUT HANDLING
  * ============================================================ */
 
-static void
+static bool
 handle_key(struct app_state *app, struct platform_event *ev)
 {
 	uint32_t key = ev->key.keysym;
 	uint32_t mods = ev->key.modifiers;
+	int old_focus = app->focused_item;
 
-	/* Navigation */
 	switch (key) {
 	case XKB_KEY_j:
 	case XKB_KEY_Down:
@@ -127,35 +124,37 @@ handle_key(struct app_state *app, struct platform_event *ev)
 		break;
 
 	case XKB_KEY_g:
-		/* g = go to top */
 		app->focused_item = 0;
 		break;
 
 	case XKB_KEY_G:
-		/* G = got to bottom */
 		app->focused_item = NUM_ITEMS - 1;
 		break;
 
 	case XKB_KEY_Return:
 	case XKB_KEY_space:
-		/* Activate current item */
 		app->item_activated[app->focused_item] =
 		    !app->item_activated[app->focused_item];
 		printf("Item %d toggled: %s\n",
 		       app->focused_item,
 		       app->item_activated[app->focused_item] ? "ON" : "OFF");
-		break;
+		return true; /* State changed */
 
 	case XKB_KEY_Escape:
 		app->running = false;
-		break;
+		return false;
 
 	case XKB_KEY_q:
 		if (mods & MOD_CTRL) {
 			app->running = false;
 		}
-		break;
+		return false;
+
+	default:
+		return false;
 	}
+
+	return app->focused_item != old_focus; /* True if focus changed */
 }
 
 /* ============================================================
@@ -312,15 +311,25 @@ main(int argc, char *argv[])
 	printf("  Escape  - Quit\n");
 	printf("  Ctrl+Q  - Quit\n\n");
 
+	/* Initial render */
+	app.needs_redraw = true;
+
 	/* Main loop */
 	while (app.running) {
 		struct platform_event ev;
-		/* Poll for Wayland events (non-blocking) */
-		if (!platform_poll_events(platform)) {
+
+		/* Render if needed (before waiting) */
+		if (app.needs_redraw) {
+			render(platform, &app);
+			app.needs_redraw = false;
+		}
+
+		/* Block until event arrives (0% CPU when idle) */
+		if (!platform_wait_events(platform, -1)) {
 			break; /* Display connection lost */
 		}
 
-		/* Process Wayland events */
+		/* Process all queued events */
 		while (platform_next_event(platform, &ev)) {
 			switch (ev.type) {
 			case EVENT_QUIT:
@@ -328,11 +337,16 @@ main(int argc, char *argv[])
 				break;
 
 			case EVENT_KEY_PRESS:
-				handle_key(&app, &ev);
+				if (handle_key(&app, &ev)) {
+					app.needs_redraw = true;
+				}
 				break;
 
-			case EVENT_KEY_RELEASE:
-				/* Key released */
+			case EVENT_RESIZE:
+				printf("Resized to %dx%d\n",
+				       ev.resize.width,
+				       ev.resize.height);
+				app.needs_redraw = true;
 				break;
 
 			case EVENT_FOCUS_IN:
@@ -342,24 +356,10 @@ main(int argc, char *argv[])
 			case EVENT_FOCUS_OUT:
 				printf("Window lost focus\n");
 				break;
-			case EVENT_RESIZE:
-				printf("Resized to %dx%d\n",
-				       ev.resize.width,
-				       ev.resize.height);
 
 			default:
 				break;
 			}
-		}
-		/* Render */
-		render(platform, &app);
-
-		/* Frame limiting (~60 FPS) */
-		{
-			struct timespec sleep_time;
-			sleep_time.tv_sec = 0;
-			sleep_time.tv_nsec = 16000000;
-			nanosleep(&sleep_time, NULL);
 		}
 	}
 
