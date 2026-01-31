@@ -17,6 +17,9 @@
 
 #include "platform/platform.h"
 #include "render/render_font.h"
+#include "ui/ui.h"
+#include "ui/ui_button.h"
+#include "ui/ui_label.h"
 
 /* ============================================================
  * APPLICATION STATE
@@ -32,68 +35,6 @@ struct app_state {
 	bool item_activated[NUM_ITEMS];
 	struct font_ctx *font;
 };
-
-/* ============================================================
- * DRAWING FUNCTIONS
- * ============================================================ */
-
-static void
-draw_rect(
-    struct framebuffer *fb, int rx, int ry, int rw, int rh, uint32_t color)
-{
-	int x, y;
-	int x0, y0, x1, y1;
-
-	x0 = rx < 0 ? 0 : rx;
-	y0 = ry < 0 ? 0 : ry;
-	x1 = (rx + rw) > fb->width ? fb->width : (rx + rw);
-	y1 = (ry + rh) > fb->height ? fb->height : (ry + rh);
-
-	for (y = y0; y < y1; y++) {
-		for (x = x0; x < x1; x++) {
-			fb->pixels[y * fb->width + x] = color;
-		}
-	}
-}
-
-static void
-draw_rect_outline(struct framebuffer *fb,
-		  int rx,
-		  int ry,
-		  int rw,
-		  int rh,
-		  uint32_t color,
-		  int thickness)
-{
-	/* Top */
-	draw_rect(fb, rx, ry, rw, thickness, color);
-	/* Bottom */
-	draw_rect(fb, rx, ry + rh - thickness, rw, thickness, color);
-	/* Left */
-	draw_rect(fb, rx, ry, thickness, rh, color);
-	/* Right */
-	draw_rect(fb, rx + rw - thickness, ry, thickness, rh, color);
-}
-
-static void
-draw_text(struct framebuffer *fb,
-	  struct font_ctx *font,
-	  int x,
-	  int y,
-	  const char *text,
-	  uint32_t color)
-{
-	/* y is top-left, but font_draw_text expect baseline */
-	int baseline_y = y + font_get_ascent(font);
-	font_draw_text(font,
-		       fb->pixels,
-		       fb->width,
-		       fb->height,
-		       x,
-		       baseline_y,
-		       text,
-		       color);
-}
 
 /* ============================================================
  * INPUT HANDLING
@@ -165,11 +106,8 @@ static void
 render(struct platform *p, struct app_state *app)
 {
 	struct framebuffer *fb;
+	struct ui_ctx ctx;
 	int i;
-	int item_height = 40;
-	int item_width = 400;
-	int start_x = 50;
-	int start_y = 60;
 	int line_height;
 
 	fb = platform_get_framebuffer(p);
@@ -177,85 +115,48 @@ render(struct platform *p, struct app_state *app)
 		return;
 	}
 
+	ui_ctx_init(&ctx, fb, app->font);
+	ui_ctx_clear(&ctx);
+
 	line_height = font_get_line_height(app->font);
 
-	/* Clear to dark background */
-	for (i = 0; i < fb->width * fb->height; i++) {
-		fb->pixels[i] = 0xFF1E1E1E;
-	}
-
 	/* Draw title */
-	draw_text(
-	    fb, app->font, start_x, 20, "Keyboard-Driven Menu", 0xFFFFFFFF);
-	draw_text(fb,
-		  app->font,
-		  start_x,
-		  20 + line_height,
-		  "j/k to navigate, Enter to select",
-		  0xFF808080);
+	ui_label_draw(&ctx, 50, 20, "Keyboard-Driven Menu", UI_LABEL_NORMAL);
+	ui_label_draw(&ctx,
+		      50,
+		      20 + line_height,
+		      "j/k to navigate, Enter to select",
+		      UI_LABEL_MUTED);
 
 	/* Draw menu items */
 	for (i = 0; i < NUM_ITEMS; i++) {
-		int y = start_y + i * (item_height + 10);
-		bool focused = (i == app->focused_item);
-		bool activated = app->item_activated[i];
-		uint32_t bg_color, text_color;
+		struct ui_rect rect = {50, 60 + i * 50, 400, 40};
+		struct ui_button_cfg cfg =
+		    ui_button_cfg_default(app->items[i]);
 
-		/* Item background */
-		bg_color = activated ? 0xFF2D5A2D : 0xFF2D2D2D;
-		if (focused) {
-			bg_color = activated ? 0xFF3D7A3D : 0xFF3D3D3D;
+		if (i == app->focused_item) {
+			cfg.state |= UI_BTN_FOCUSED;
 		}
-		draw_rect(fb, start_x, y, item_width, item_height, bg_color);
-
-		/* Focus idicator (left border) */
-		if (focused) {
-			draw_rect(fb, start_x, y, 4, item_height, 0xFF007ACC);
+		if (app->item_activated[i]) {
+			cfg.state |= UI_BTN_ACTIVE;
+			cfg.status_text = "[ON]";
 		}
-
-		/* Focus ring */
-		if (focused) {
-			draw_rect_outline(fb,
-					  start_x - 2,
-					  y - 2,
-					  item_width + 4,
-					  item_height + 4,
-					  0xFF007ACC,
-					  2);
-		}
-
-		/* Item text */
-		text_color = focused ? 0xFFFFFFFF : 0xFFCCCCCC;
-		draw_text(fb,
-			  app->font,
-			  start_x + 20,
-			  y + (item_height - line_height) / 2,
-			  app->items[i],
-			  text_color);
-
-		/* Status indicator */
-		if (activated) {
-			draw_text(fb,
-				  app->font,
-				  start_x + item_width - 60,
-				  y + (item_height - line_height) / 2,
-				  "[ON]",
-				  0xFF00FF00);
-		}
+		ui_button_draw(&ctx, rect, &cfg);
 	}
 
-	/* Draw mode indicator at bottom */
-	draw_rect(fb, 0, fb->height - 30, fb->width, 30, 0xFF252525);
-	draw_text(fb, app->font, 10, fb->height - 25, "NORMAL", 0xFF007ACC);
-
-	/* Draw help text */
-	draw_text(
-	    fb,
-	    app->font,
-	    start_x,
+	/* Status bar */
+	struct ui_rect status_rect = {0, fb->height - 30, fb->width, 30};
+	ui_panel_draw(&ctx,
+		      status_rect,
+		      0xFF2F2F2F,
+		      UI_PANEL_FLAT); /* Darker than bg_primary */
+	ui_label_draw(&ctx, 10, fb->height - 25, "NORMAL", UI_LABEL_ACCENT);
+	ui_label_draw(
+	    &ctx,
+	    50,
 	    fb->height - 25,
 	    "j/k: navigate | Enter: toggle | g/G: first/last | Esc: quit",
-	    0xFF606060);
+	    UI_LABEL_MUTED);
 
 	platform_present(p);
 }

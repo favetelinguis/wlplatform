@@ -16,7 +16,12 @@ CFLAGS += -Ivendor/stb
 SRCS = src/main.c \
        src/platform/platform_wayland.c \
        src/protocols/xdg-shell.c \
-       src/render/render_font.c
+       src/render/render_font.c \
+       src/render/render_primitives.c \
+       src/ui/ui_ctx.c \
+       src/ui/ui_label.c \
+       src/ui/ui_button.c \
+       src/ui/ui_panel.c
 
 # Vendor source files (compile without sanitizers)
 VENDOR_SRCS = vendor/stb/stb_truetype.c
