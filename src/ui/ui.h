@@ -17,6 +17,7 @@
 
 #include "ui_button.h"
 #include "ui_ctx.h"
+#include "ui_input.h"
 #include "ui_label.h"
 #include "ui_panel.h"
 #include "ui_types.h"

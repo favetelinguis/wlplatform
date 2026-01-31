@@ -21,6 +21,7 @@ SRCS = src/main.c \
        src/ui/ui_ctx.c \
        src/ui/ui_label.c \
        src/ui/ui_button.c \
+       src/ui/ui_input.c \
        src/ui/ui_panel.c
 
 # Vendor source files (compile without sanitizers)
