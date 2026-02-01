@@ -18,6 +18,7 @@ SRCS = src/main.c \
        src/protocols/xdg-shell.c \
        src/render/render_font.c \
        src/render/render_primitives.c \
+       src/buffer/buffer.c \
        src/ui/ui_ctx.c \
        src/ui/ui_label.c \
        src/ui/ui_button.c \
