@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 
 #include "buffer/buffer.h"
@@ -16,6 +17,9 @@
 #include "render/render_font.h"
 #include "render/render_primitives.h"
 #include "ui/ui.h"
+#include "ui/ui_panel.h"
+
+#define MENU_ROWS 15
 
 /* ============================================================
  * APPLICATION STATE
@@ -117,6 +121,7 @@ render(struct platform *p, struct app_state *app)
 	int line_height;
 	int padding_x = 8;
 	int input_y, input_h;
+	int menu_h;
 	int lines_above, lines_below;
 	int y, i, line_num;
 	const char *line;
@@ -129,6 +134,7 @@ render(struct platform *p, struct app_state *app)
 	ui_ctx_clear(&ctx);
 
 	line_height = font_get_line_height(app->font);
+	menu_h = MENU_ROWS * line_height;
 
 	/*
 	 * Calculate input box position (vertically ceneted).
@@ -141,7 +147,7 @@ render(struct platform *p, struct app_state *app)
 	 * Calculate how many context lines fit above and below.
 	 */
 	lines_above = input_y / line_height;
-	lines_below = (fb->height - input_y - input_h) / line_height;
+	lines_below = (fb->height - input_y - input_h - menu_h) / line_height;
 
 	/*
 	 * Draw lines ABOVE the input box (previous lines in buffer).
@@ -207,6 +213,10 @@ render(struct platform *p, struct app_state *app)
 		    &ctx, padding_x, y, line, ctx.theme.fg_secondary);
 	}
 
+	/* Menu area */
+	struct ui_rect menu_rect = {0, fb->height - menu_h, fb->width, menu_h};
+	ui_panel_draw(&ctx, menu_rect, ctx.theme.bg_hover, UI_PANEL_FLAT);
+
 	platform_present(p);
 }
 
@@ -220,6 +230,9 @@ main(int argc, char *argv[])
 	struct platform *platform;
 	struct app_state app = {0};
 	const char *filepath;
+
+	/* Print PID for easy killing */
+	printf("PID: %d\n", getpid());
 
 	/* Require filename argument */
 	if (argc < 2) {
@@ -236,7 +249,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Load font */
-	app.font = font_create("assets/fonts/JetBrainsMono-Regular.ttf", 16);
+	app.font = font_create("assets/fonts/JetBrainsMono-Regular.ttf", 20);
 	if (!app.font) {
 		fprintf(stderr, "Failed to load font\n");
 		buffer_destroy(&app.buffer);
