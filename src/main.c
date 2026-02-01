@@ -86,7 +86,7 @@ handle_key(struct app_state *app, struct platform_event *ev)
 	}
 
 	/*
-	 * Step 2: Global keys.
+	 * Step 3: Global keys.
 	 */
 	switch (key) {
 	case XKB_KEY_Escape:

@@ -1,0 +1,5 @@
+# Vendored dependencies
+vendor/
+
+# Generated protocol code
+protocols/
