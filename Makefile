@@ -11,6 +11,11 @@ LIBS += -lrt -lm
 
 # Include vendor libraries
 CFLAGS += -Ivendor/stb
+CFLAGS += -Ivendor/tree-sitter/lib/include -Ivendor/tree-sitter/lib/src
+
+# Vendor flags: no sanitizers, but needs tree-sitter includes
+VENDOR_CFLAGS = -std=c99 -Wall -O2
+VENDOR_CFLAGS += -Ivendor/tree-sitter/lib/include -Ivendor/tree-sitter/lib/src
 
 # Source files
 SRCS = src/main.c \
@@ -18,6 +23,9 @@ SRCS = src/main.c \
        src/protocols/xdg-shell.c \
        src/render/render_font.c \
        src/render/render_primitives.c \
+       src/string/str.c \
+       src/string/str_buf.c \
+       src/string/arena.c \
        src/buffer/buffer.c \
        src/ui/ui_ctx.c \
        src/ui/ui_label.c \
@@ -27,6 +35,9 @@ SRCS = src/main.c \
 
 # Vendor source files (compile without sanitizers)
 VENDOR_SRCS = vendor/stb/stb_truetype.c
+VENDOR_SRCS += vendor/tree-sitter/lib/src/lib.c \
+               vendor/tree-sitter-markdown/src/parser.c \
+               vendor/tree-sitter-markdown/src/scanner.c
 
 # Object files (in bin/ directory)
 OBJS = $(SRCS:%.c=bin/%.o)
@@ -49,7 +60,7 @@ bin/src/%.o: src/%.c
 # Compile vendor sources (without sanitizers to avoid false positives)
 bin/vendor/%.o: vendor/%.c
 	@mkdir -p $(dir $@)
-	$(CC) -std=c99 -Wall -O2 -c -o $@ $<
+	$(CC) $(VENDOR_CFLAGS) -c -o $@ $<
 
 # Clean
 clean:

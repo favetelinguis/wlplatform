@@ -11,99 +11,133 @@
 void
 buffer_init(struct buffer *buf)
 {
-	memset(buf, 0, sizeof(*buf));
+	buf->text = NULL;
+	buf->lines = NULL;
+	buf->line_count = 0;
+	buf->line_cap = 0;
+	buf->cursor_line = 0;
+	buf->path[0] = '\0';
 }
 
 void
 buffer_destroy(struct buffer *buf)
 {
-	int i;
 
-	for (i = 0; i < buf->line_count; i++)
-		free(buf->lines[i]);
+	if (buf->text)
+		str_buf_free(buf->text);
 	free(buf->lines);
 	buffer_init(buf); /* Reset to clean state */
-}
-
-/*
- * Double array capacity when full.
- * Class growth strategy: amortized O(1) insertion.
- */
-static bool
-grow_lines(struct buffer *buf)
-{
-	int new_cap;
-	char **new_lines;
-
-	new_cap = buf->line_cap ? buf->line_cap * 2 : INITIAL_LINE_CAP;
-	new_lines = realloc(buf->lines, new_cap * sizeof(char *));
-	if (!new_lines)
-		return false;
-
-	buf->lines = new_lines;
-	buf->line_cap = new_cap;
-	return true;
 }
 
 bool
 buffer_load(struct buffer *buf, const char *path)
 {
 	FILE *fp;
-	char line_buf[BUFFER_LINE_MAX];
-	size_t len;
+	long file_size;
+	char *raw;
+	str full;
+	size_t i, line_start;
+	int newline_count;
 
 	/* Clear any existing content */
 	buffer_destroy(buf);
 
+	/* Open and get file size */
 	fp = fopen(path, "r");
 	if (!fp)
 		return false;
+	fseek(fp, 0, SEEK_END);
+	file_size = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
 
-	/* Store path */
-	strncpy(buf->path, path, BUFFER_PATH_MAX - 1);
-	buf->path[BUFFER_PATH_MAX - 1] = '\0';
+	/* Create str_buf with exact capacity */
+	buf->text = str_buf_with_capacity((size_t)file_size);
+	if (!buf->text) {
+		fclose(fp);
+		return false;
+	}
 
-	/* Read lines */
-	while (fgets(line_buf, sizeof(line_buf), fp)) {
-		/* Strip trailing newline */
-		len = strlen(line_buf);
-		if (len > 0 && line_buf[len - 1] == '\n')
-			line_buf[--len] = '\0';
+	/* Read file directly into temporary buffer, then append */
+	raw = malloc((size_t)file_size);
+	if (!raw) {
+		fclose(fp);
+		buffer_destroy(buf);
+		return false;
+	}
 
-		/* Grow array if needed */
-		if (buf->line_count >= buf->line_cap) {
-			if (!grow_lines(buf)) {
-				fclose(fp);
-				buffer_destroy(buf);
-				return false;
-			}
-		}
-
-		/* Duplicate line into heap */
-		buf->lines[buf->line_count] = strdup(line_buf);
-		if (!buf->lines[buf->line_count]) {
-			fclose(fp);
-			buffer_destroy(buf);
-			return false;
-		}
-		buf->line_count++;
+	if (fread(raw, 1, (size_t)file_size, fp) != (size_t)file_size) {
+		free(raw);
+		fclose(fp);
+		buffer_destroy(buf);
+		return false;
 	}
 	fclose(fp);
+
+	/* Append to str_buf (maintains null terminator) */
+	str_buf_append(buf->text, str_from_parts(raw, (size_t)file_size));
+	free(raw);
+
+	/* Get view for scanning */
+	full = str_buf_view(buf->text);
+
+	/* Count newlines to allocate line array */
+	newline_count = 0;
+	for (i = 0; i < full.len; i++) {
+		if (full.data[i] == '\n')
+			newline_count++;
+	}
+
+	buf->line_cap = newline_count + 1;
+	buf->lines = malloc(buf->line_cap * sizeof(str));
+	if (!buf->lines) {
+		buffer_destroy(buf);
+		return false;
+	}
+
+	/* Build line index as str views */
+	line_start = 0;
+	buf->line_count = 0;
+	for (i = 0; i <= full.len; i++) {
+		if (i == full.len || full.data[i] == '\n') {
+			buf->lines[buf->line_count] = str_from_parts(
+			    full.data + line_start, i - line_start);
+			buf->line_count++;
+			line_start = i + 1;
+		}
+	}
+	strncpy(buf->path, path, BUFFER_PATH_MAX - 1);
+	buf->path[BUFFER_PATH_MAX - 1] = '\0';
 	return true;
 }
 
-const char *
+str
+buffer_get_text(struct buffer *buf)
+{
+	if (!buf->text)
+		return STR_EMPTY;
+	return str_buf_view(buf->text);
+}
+
+str
 buffer_get_line(struct buffer *buf, int line_num)
 {
 	if (line_num < 0 || line_num >= buf->line_count)
-		return NULL;
+		return STR_EMPTY;
 	return buf->lines[line_num];
 }
 
-const char *
+str
 buffer_get_current_line(struct buffer *buf)
 {
 	return buffer_get_line(buf, buf->cursor_line);
+}
+
+const char *
+buffer_get_text_ctr(struct buffer *buf)
+{
+	if (!buf->text)
+		return "";
+	return str_buf_cstr(buf->text);
 }
 
 void

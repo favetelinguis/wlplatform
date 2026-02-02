@@ -1,29 +1,22 @@
-/*
- * src/buffer/buffer.h
- *
- * A buffer represents a file loaded into memory.
- * Lines are stored as a dynamic array of strings.
- *
- * Design notes:
- * - We use char** for lines rather than gap buffer because
- *   we're view-only (no editing). Gap buffers are for insertion.
- * - Line storage is heap-allocated; this is the one place
- *   where dynamic allocation is necessary.
- * - Future: add modified flag, filename, syntax highlighting hooks.
- */
 #ifndef BUFFER_H
 #define BUFFER_H
 
 #include <stdbool.h>
+
+#include "../string/str.h"
+#include "../string/str_buf.h"
 
 #define BUFFER_PATH_MAX 4096
 #define BUFFER_LINE_MAX 4096 /* Max line length we handle */
 
 struct buffer {
 	char path[BUFFER_PATH_MAX]; /* Absolute path to file */
-	char **lines;		    /* Array of line strings (heap) */
-	int line_count;		    /* Number of lines */
-	int line_cap;		    /* Allocated capacity */
+
+	str_buf *text;	/* Owned file content (contiguous, maintains null
+			   termination) */
+	str *lines;	/* Line index: array of str views into text */
+	int line_count; /* Number of lines */
+	int line_cap;	/* Allocated capacity */
 
 	int cursor_line; /* Current line (0-indexed, shown in input) */
 };
@@ -48,16 +41,22 @@ void buffer_destroy(struct buffer *buf);
  */
 bool buffer_load(struct buffer *buf, const char *path);
 
+/* Get full text for parsing */
+str buffer_get_text(struct buffer *buf);
+
 /*
  * Get line at given index.
  * Return NULL if index out of bounds.
  */
-const char *buffer_get_line(struct buffer *buf, int line_num);
+str buffer_get_line(struct buffer *buf, int line_num);
 
 /*
  * Get current line (at cursor_line)
  */
-const char *buffer_get_current_line(struct buffer *buf);
+str buffer_get_current_line(struct buffer *buf);
+
+/* For C string APIs (UI labels that need null-terminated) */
+const char *buffer_get_text_cstr(struct buffer *buf);
 
 /*
  * Move cursor down by n lines (scroll buffer up throgh input).

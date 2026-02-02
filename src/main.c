@@ -44,10 +44,10 @@ struct app_state {
 static void
 sync_input_to_buffer(struct app_state *app)
 {
-	const char *line;
+	str line;
 
 	line = buffer_get_current_line(&app->buffer);
-	ui_input_set_text(&app->input, line ? line : "");
+	ui_input_set_text(&app->input, str_to_cstr(line));
 }
 
 /* ============================================================
@@ -124,7 +124,7 @@ render(struct platform *p, struct app_state *app)
 	int menu_h;
 	int lines_above, lines_below;
 	int y, i, line_num;
-	const char *line;
+	str line;
 
 	fb = platform_get_framebuffer(p);
 	if (!fb)
@@ -160,8 +160,6 @@ render(struct platform *p, struct app_state *app)
 			continue; /* Before start of file, leave blank */
 
 		line = buffer_get_line(&app->buffer, line_num);
-		if (!line)
-			continue;
 
 		y = i * line_height;
 		ui_label_draw_colored(
@@ -184,7 +182,7 @@ render(struct platform *p, struct app_state *app)
 		ui_label_draw_colored(&ctx,
 				      padding_x,
 				      text_y,
-				      app->input.buf,
+				      str_from_cstr(app->input.buf),
 				      ctx.theme.fg_primary);
 
 		/* Cursor */
@@ -205,8 +203,6 @@ render(struct platform *p, struct app_state *app)
 			break; /* Past end of file */
 
 		line = buffer_get_line(&app->buffer, line_num);
-		if (!line)
-			continue;
 
 		y = input_y + input_h + (i * line_height);
 		ui_label_draw_colored(
@@ -258,7 +254,8 @@ main(int argc, char *argv[])
 
 	/* Initialize input with first line */
 	ui_input_init(&app.input);
-	ui_input_set_text(&app.input, buffer_get_current_line(&app.buffer));
+	ui_input_set_text(&app.input,
+			  str_to_cstr(buffer_get_current_line(&app.buffer)));
 
 	/* Basic initialization of app */
 	app.running = true;

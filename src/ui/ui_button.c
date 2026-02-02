@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 #include "../render/render_primitives.h"
+#include "../string/str.h"
 #include "ui_label.h"
 
 struct ui_button_cfg
@@ -65,17 +66,18 @@ ui_button_draw(struct ui_ctx *ctx,
 	text_y = rect.y + (rect.h - text_height) / 2;
 
 	ui_label_draw_colored(
-	    ctx, rect.x + cfg->padding_x, text_y, cfg->label, text_color);
+	    ctx, rect.x + cfg->padding_x, text_y, str_from_cstr(cfg->label), text_color);
 
 	/* Draw status text if present */
 	if (cfg->status_text) {
-		int status_width = ui_label_width(ctx, cfg->status_text);
+		str status = str_from_cstr(cfg->status_text);
+		int status_width = ui_label_width(ctx, status);
 		int status_x = rect.x + rect.w - status_width - cfg->padding_x;
 
 		ui_label_draw_colored(ctx,
 				      status_x,
 				      text_y,
-				      cfg->status_text,
+				      status,
 				      ctx->theme.success);
 	}
 }

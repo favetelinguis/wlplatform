@@ -4,11 +4,8 @@
 #include "../render/render_font.h"
 
 void
-ui_label_draw(struct ui_ctx *ctx,
-	      int x,
-	      int y,
-	      const char *text,
-	      enum ui_label_style style)
+ui_label_draw(
+    struct ui_ctx *ctx, int x, int y, str text, enum ui_label_style style)
 {
 	uint32_t color;
 
@@ -33,7 +30,7 @@ ui_label_draw(struct ui_ctx *ctx,
 
 void
 ui_label_draw_colored(
-    struct ui_ctx *ctx, int x, int y, const char *text, uint32_t color)
+    struct ui_ctx *ctx, int x, int y, str text, uint32_t color)
 {
 	int baseline_y;
 
@@ -46,14 +43,14 @@ ui_label_draw_colored(
 		       ctx->fb->height,
 		       x,
 		       baseline_y,
-		       text,
+		       str_to_cstr(text),
 		       color);
 }
 
 int
-ui_label_width(struct ui_ctx *ctx, const char *text)
+ui_label_width(struct ui_ctx *ctx, str text)
 {
-	return font_measure_text(ctx->font, text, NULL);
+	return font_measure_text(ctx->font, str_to_cstr(text), NULL);
 }
 
 int

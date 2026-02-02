@@ -1,6 +1,7 @@
 #ifndef UI_LABEL_H
 #define UI_LABEL_H
 
+#include "../string/str.h"
 #include "ui_types.h"
 
 /*
@@ -33,22 +34,19 @@ enum ui_label_style {
  *
  * Note: Unlike font_draw_text(), y is top of text, not baseline.
  */
-void ui_label_draw(struct ui_ctx *ctx,
-		   int x,
-		   int y,
-		   const char *text,
-		   enum ui_label_style style);
+void ui_label_draw(
+    struct ui_ctx *ctx, int x, int y, str text, enum ui_label_style style);
 
 /*
  * Draw a text label with explicit color.
  */
 void ui_label_draw_colored(
-    struct ui_ctx *ctx, int x, int y, const char *text, uint32_t color);
+    struct ui_ctx *ctx, int x, int y, str text, uint32_t color);
 
 /*
  * Measure label width without drawing.
  */
-int ui_label_width(struct ui_ctx *ctx, const char *text);
+int ui_label_width(struct ui_ctx *ctx, str text);
 
 /*
  * Get label height (line height from font).
