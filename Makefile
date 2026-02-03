@@ -31,7 +31,10 @@ SRCS = src/main.c \
        src/ui/ui_label.c \
        src/ui/ui_button.c \
        src/ui/ui_input.c \
-       src/ui/ui_panel.c
+       src/ui/ui_panel.c \
+       src/ui/ui_menu_ast.c \
+       src/syntax/syntax.c \
+       src/view/view.c
 
 # Vendor source files (compile without sanitizers)
 VENDOR_SRCS = vendor/stb/stb_truetype.c

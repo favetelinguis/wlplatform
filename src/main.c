@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 
@@ -16,8 +17,11 @@
 #include "platform/platform.h"
 #include "render/render_font.h"
 #include "render/render_primitives.h"
+#include "string/str.h"
+#include "syntax/syntax.h"
 #include "ui/ui.h"
 #include "ui/ui_panel.h"
+#include "view/view.h"
 
 #define MENU_ROWS 15
 
@@ -31,6 +35,9 @@ struct app_state {
 	struct ui_input input;
 	struct buffer buffer;
 	struct font_ctx *font;
+	struct syntax_ctx *syntax;
+	struct view view;
+	struct syntax_visible visible_ast;
 };
 
 /* ============================================================
@@ -45,9 +52,12 @@ static void
 sync_input_to_buffer(struct app_state *app)
 {
 	str line;
+	char *cstr;
 
 	line = buffer_get_current_line(&app->buffer);
-	ui_input_set_text(&app->input, str_to_cstr(line));
+	cstr = str_to_cstr(line);
+	ui_input_set_text(&app->input, cstr);
+	free(cstr);
 }
 
 /* ============================================================
@@ -60,8 +70,6 @@ handle_key(struct app_state *app, struct platform_event *ev)
 	uint32_t key = ev->key.keysym;
 	uint32_t mods = ev->key.modifiers;
 	uint32_t codepoint = ev->key.codepoint;
-	int visible_lines;
-
 	/* Step 1: Buffer navigation keys (Ctrl-N, Ctrl-P).
 	 * These take priority over input handling.
 	 */
@@ -143,6 +151,25 @@ render(struct platform *p, struct app_state *app)
 	input_h = line_height + 4; /* Text height + small padding */
 	input_y = (fb->height - input_h) / 2;
 
+	/* Update view state */
+	if (view_update(&app->view,
+			app->buffer.cursor_line,
+			app->buffer.line_count,
+			fb->height,
+			line_height,
+			menu_h)) {
+		/* Visible range changed - refresh AST cache */
+		if (syntax_has_tree(app->syntax)) {
+			str source = buffer_get_text(&app->buffer);
+			syntax_get_visible_nodes(
+			    app->syntax,
+			    source,
+			    (uint32_t)app->view.first_visible_line,
+			    (uint32_t)app->view.last_visible_line,
+			    &app->visible_ast);
+		}
+	}
+
 	/*
 	 * Calculate how many context lines fit above and below.
 	 */
@@ -209,9 +236,9 @@ render(struct platform *p, struct app_state *app)
 		    &ctx, padding_x, y, line, ctx.theme.fg_secondary);
 	}
 
-	/* Menu area */
+	/* Menu area - draw AST nodes */
 	struct ui_rect menu_rect = {0, fb->height - menu_h, fb->width, menu_h};
-	ui_panel_draw(&ctx, menu_rect, ctx.theme.bg_hover, UI_PANEL_FLAT);
+	menu_ast_draw(&ctx, menu_rect, &app->visible_ast, app->buffer.cursor_line);
 
 	platform_present(p);
 }
@@ -244,6 +271,14 @@ main(int argc, char *argv[])
 		return 1;
 	}
 
+	view_init(&app.view);
+
+	app.syntax = syntax_create();
+	if (app.syntax) {
+		str source = buffer_get_text(&app.buffer);
+		syntax_parse(app.syntax, source);
+	}
+
 	/* Load font */
 	app.font = font_create("assets/fonts/JetBrainsMono-Regular.ttf", 20);
 	if (!app.font) {
@@ -254,8 +289,11 @@ main(int argc, char *argv[])
 
 	/* Initialize input with first line */
 	ui_input_init(&app.input);
-	ui_input_set_text(&app.input,
-			  str_to_cstr(buffer_get_current_line(&app.buffer)));
+	{
+		char *cstr = str_to_cstr(buffer_get_current_line(&app.buffer));
+		ui_input_set_text(&app.input, cstr);
+		free(cstr);
+	}
 
 	/* Basic initialization of app */
 	app.running = true;
@@ -306,6 +344,7 @@ main(int argc, char *argv[])
 	/* Cleanup (reverse order of initialization) */
 	platform_destroy(platform);
 	font_destroy(app.font);
+	syntax_destroy(app.syntax);
 	buffer_destroy(&app.buffer);
 
 	printf("Clean shutdown\n");

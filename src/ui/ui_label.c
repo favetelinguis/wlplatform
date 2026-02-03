@@ -1,5 +1,7 @@
 #include "ui_label.h"
 
+#include <stdlib.h>
+
 #include "../platform/platform.h"
 #include "../render/render_font.h"
 
@@ -33,24 +35,33 @@ ui_label_draw_colored(
     struct ui_ctx *ctx, int x, int y, str text, uint32_t color)
 {
 	int baseline_y;
+	char *cstr;
 
 	/* Convert top-left y to baseline y */
 	baseline_y = y + font_get_ascent(ctx->font);
 
+	cstr = str_to_cstr(text);
 	font_draw_text(ctx->font,
 		       ctx->fb->pixels,
 		       ctx->fb->width,
 		       ctx->fb->height,
 		       x,
 		       baseline_y,
-		       str_to_cstr(text),
+		       cstr,
 		       color);
+	free(cstr);
 }
 
 int
 ui_label_width(struct ui_ctx *ctx, str text)
 {
-	return font_measure_text(ctx->font, str_to_cstr(text), NULL);
+	char *cstr;
+	int width;
+
+	cstr = str_to_cstr(text);
+	width = font_measure_text(ctx->font, cstr, NULL);
+	free(cstr);
+	return width;
 }
 
 int
