@@ -31,12 +31,23 @@ src/
 ├── render/
 │   ├── render_font.[ch]        # stb_truetype-based text rendering
 │   └── render_primitives.[ch]  # Rectangle and text drawing primitives
+├── string/
+│   ├── str.[ch]                # Immutable string view (non-owning, pass by value)
+│   ├── str_buf.[ch]            # Mutable string buffer (owning, heap-allocated)
+│   └── arena.[ch]              # Bump allocator for batch allocations
+├── syntax/
+│   └── syntax.[ch]             # Tree-sitter parsing (markdown via vendored parser)
+├── view/
+│   └── view.[ch]               # Visible line range calculation
 └── ui/
     ├── ui.h                    # Unified include for all UI components
     ├── ui_types.h              # Common types (ui_rect, ui_theme, ui_ctx)
     ├── ui_ctx.[ch]             # Rendering context, Zenburn theme
     ├── ui_label.[ch]           # Text labels (normal, muted, accent)
     ├── ui_input.[ch]           # Single-line text input with readline bindings
+    ├── ui_menu_ast.[ch]        # AST debug view in menu area
+    ├── ui_avy.[ch]             # Avy-style jump navigation overlay
+    ├── ui_menu_actions.[ch]    # Action menu for avy targets
     ├── ui_button.[ch]          # Keyboard-focusable buttons (legacy)
     └── ui_panel.[ch]           # Panel/container backgrounds (legacy)
 ```
@@ -49,6 +60,20 @@ src/
 - **Double buffering**: Two buffers managed by Wayland compositor
 - **ASCII text only**: Font renderer supports characters 32-126, glyph atlas 512x512
 - **Single-focus model**: One text input always focused, no focus cycling needed
+- **String abstractions**: Use `str` (non-owning view) and `str_buf` (owning buffer), not raw `char *`
+
+### Application Modes
+
+The application uses a mode system to handle different input states:
+
+| Mode | Description |
+|------|-------------|
+| `MODE_NORMAL` | Normal editing mode |
+| `MODE_AVY_CHAR` | Waiting for avy search character |
+| `MODE_AVY_HINT` | Displaying hints, waiting for hint selection |
+| `MODE_AVY_ACTION` | Target selected, waiting for action key |
+
+Mode transitions are triggered by keybindings and affect how input is processed and what is rendered in the menu area.
 
 ### UI Layout
 
@@ -139,6 +164,15 @@ The input component displays the current buffer line and handles text editing. I
 | `Ctrl-N` | Move to next line |
 | `Ctrl-P` | Move to previous line |
 
+**Avy navigation** (jump to visible text):
+
+| Binding | Action |
+|---------|--------|
+| `Alt-;` | Start avy search upward |
+| `Alt-'` | Start avy search downward |
+| `j` | Jump to target (in action mode) |
+| `Escape` | Cancel avy mode |
+
 **Key handling pattern**: Input component handles keys first via `ui_input_handle_key()`. Returns `true` if consumed, `false` to pass to global handlers (Escape, Ctrl-Q).
 
 ```c
@@ -174,7 +208,10 @@ Follows suckless.org C99 style, enforced by `.clang-format`:
 
 System (via pkg-config): `wayland-client`, `xkbcommon`
 
-Vendored: `stb_truetype` in `vendor/stb/`
+Vendored in `vendor/`:
+- `stb/stb_truetype` - Font rasterization
+- `tree-sitter/` - Incremental parsing library
+- `tree-sitter-markdown/` - Markdown grammar
 
 Install on Debian/Ubuntu:
 ```bash
@@ -187,3 +224,4 @@ sudo apt-get install libwayland-dev libxkbcommon-dev pkg-config build-essential
 - Vendor code compiled without sanitizers to avoid false positives
 - Event-driven rendering: only redraws when `needs_redraw` is set (no continuous loop)
 - Format code with: `clang-format -i src/**/*.c src/**/*.h`
+- Use the `c-programming` skill when writing C code in this project

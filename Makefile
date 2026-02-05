@@ -33,6 +33,8 @@ SRCS = src/main.c \
        src/ui/ui_input.c \
        src/ui/ui_panel.c \
        src/ui/ui_menu_ast.c \
+       src/ui/ui_menu_actions.c \
+       src/ui/ui_avy.c \
        src/syntax/syntax.c \
        src/view/view.c
 
