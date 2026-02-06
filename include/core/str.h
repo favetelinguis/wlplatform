@@ -106,12 +106,4 @@ struct str_search_result str_find(struct str s, struct str needle);
  */
 struct str_search_result str_rfind(struct str s, struct str needle);
 
-/* === Conversion === */
-
-/*
- * Convert to heap-allocated NUL-terminated C string.
- * Caller must free() the returned pointer. Returns NULL on allocation failure.
- */
-char *str_to_cstr(struct str s);
-
 #endif

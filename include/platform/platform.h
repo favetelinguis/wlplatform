@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <core/arena.h>
 #include <render/render_types.h>
 
 /* Modifier key flags */
@@ -52,7 +53,7 @@ struct platform_event {
 
 struct platform; /* Opaque */
 
-struct platform *platform_create(const char *title, int width, int height);
+struct platform *platform_create(struct arena *a, const char *title, int width, int height);
 void platform_destroy(struct platform *p);
 struct framebuffer *platform_get_framebuffer(struct platform *p);
 void platform_present(struct platform *p);

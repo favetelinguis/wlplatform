@@ -1,5 +1,6 @@
 #include <ui/ui_input.h>
 
+#include <core/str.h>
 #include <string.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 
@@ -16,20 +17,20 @@ ui_input_init(struct ui_input *input)
 }
 
 void
-ui_input_set_text(struct ui_input *input, const char *text)
+ui_input_set_text(struct ui_input *input, struct str text)
 {
 	int len;
 
-	if (!text) {
+	if (str_empty(text)) {
 		ui_input_init(input);
 		return;
 	}
 
-	len = strlen(text);
+	len = text.len;
 	if (len > UI_INPUT_MAX_LEN)
 		len = UI_INPUT_MAX_LEN;
 
-	memcpy(input->buf, text, len);
+	memcpy(input->buf, text.data, len);
 	input->buf[len] = '\0';
 	input->len = len;
 	input->cursor = len; /* Cursor at end */

@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
+#include <core/arena.h>
 #include <core/memory.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -668,12 +669,12 @@ static const struct wl_registry_listener registry_listener = {
  * ============================================================ */
 
 struct platform *
-platform_create(const char *title, int width, int height)
+platform_create(struct arena *a, const char *title, int width, int height)
 {
 	struct platform *p;
 	int i;
 
-	p = xcalloc(1, sizeof(*p));
+	p = arena_new0(a, struct platform);
 
 	/* Initialize buffer fds to invalid */
 	for (i = 0; i < BUFFER_COUNT; i++) {
@@ -686,7 +687,6 @@ platform_create(const char *title, int width, int height)
 	p->display = wl_display_connect(NULL);
 	if (!p->display) {
 		fprintf(stderr, "Failed to connect to Wayland display\n");
-		xfree(p);
 		return NULL;
 	}
 
@@ -695,7 +695,6 @@ platform_create(const char *title, int width, int height)
 	if (!p->xkb_context) {
 		fprintf(stderr, "Failed to create XKB context\n");
 		wl_display_disconnect(p->display);
-		xfree(p);
 		return NULL;
 	}
 
@@ -812,8 +811,6 @@ platform_destroy(struct platform *p)
 	if (p->display) {
 		wl_display_disconnect(p->display);
 	}
-
-	xfree(p);
 }
 
 bool

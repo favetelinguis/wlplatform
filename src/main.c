@@ -1,9 +1,3 @@
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <xkbcommon/xkbcommon-keysyms.h>
-
 #include <core/arena.h>
 #include <core/error.h>
 #include <core/str.h>
@@ -13,10 +7,14 @@
 #include <platform/platform.h>
 #include <render/render_font.h>
 #include <render/render_primitives.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <ui/ui.h>
 #include <ui/ui_avy.h>
 #include <ui/ui_menu_actions.h>
 #include <ui/ui_panel.h>
+#include <unistd.h>
+#include <xkbcommon/xkbcommon-keysyms.h>
 
 #define MENU_ROWS 15
 
@@ -68,12 +66,9 @@ static void
 sync_input_to_buffer(struct app_state *app)
 {
 	struct str line;
-	char *cstr;
 
 	line = buffer_get_current_line(&app->buffer);
-	cstr = str_to_cstr(line);
-	ui_input_set_text(&app->input, cstr);
-	free(cstr);
+	ui_input_set_text(&app->input, line);
 }
 
 /* ============================================================
@@ -289,16 +284,13 @@ static void
 execute_jump_action(struct app_state *app, struct avy_match *match)
 {
 	struct str line;
-	char *cstr;
 
 	/* Move buffer cursor to target line */
 	app->buffer.cursor_line = match->line;
 
 	/* Sync input box with new current line */
 	line = buffer_get_current_line(&app->buffer);
-	cstr = str_to_cstr(line);
-	ui_input_set_text(&app->input, cstr);
-	free(cstr);
+	ui_input_set_text(&app->input, line);
 
 	/* Position input cursor at word start */
 	app->input.cursor = match->col;
@@ -394,9 +386,10 @@ render(struct app_state *app, struct framebuffer *fb)
 				      str_from_cstr(app->input.buf),
 				      ctx.theme.fg_primary);
 
-		cursor_x = padding_x + font_char_index_to_x(ctx.render.font,
-							    str_from_cstr(app->input.buf),
-							    app->input.cursor);
+		cursor_x = padding_x +
+			   font_char_index_to_x(ctx.render.font,
+						str_from_cstr(app->input.buf),
+						app->input.cursor);
 		ui_rect cursor_rect = {cursor_x, text_y, 2, line_h};
 		draw_rect(&ctx.render, cursor_rect, ctx.theme.accent);
 	}
@@ -468,7 +461,7 @@ int
 main(int argc, char *argv[])
 {
 	struct platform *platform;
-	struct arena arena;
+	struct arena app_arena;
 	struct app_state app = {0};
 	const char *filepath;
 
@@ -491,24 +484,26 @@ main(int argc, char *argv[])
 
 	view_init(&app.view);
 
-	app.syntax = syntax_create();
+	/* Initialize application arena (font, syntax, platform) */
+	arena_init(&app_arena);
+
+	app.syntax = syntax_create(&app_arena);
 	if (app.syntax) {
 		struct str source = buffer_get_text(&app.buffer);
 		syntax_parse(app.syntax, source);
 	}
 
 	/* Load font */
-	arena_init(&arena);
-	app.font = font_create(&arena, "assets/fonts/JetBrainsMono-Regular.ttf", 20);
+	app.font =
+	    font_create(&app_arena, "assets/fonts/JetBrainsMono-Regular.ttf", 20);
 	if (!app.font)
 		die("Failed to load font\n");
 
 	/* Initialize input with first line */
 	ui_input_init(&app.input);
 	{
-		char *cstr = str_to_cstr(buffer_get_current_line(&app.buffer));
-		ui_input_set_text(&app.input, cstr);
-		free(cstr);
+		struct str line = buffer_get_current_line(&app.buffer);
+		ui_input_set_text(&app.input, line);
 	}
 
 	/* Basic initialization of app */
@@ -516,7 +511,7 @@ main(int argc, char *argv[])
 	app.needs_redraw = true;
 
 	/* Create window */
-	platform = platform_create("Input Demo", 800, 600);
+	platform = platform_create(&app_arena, "Input Demo", 800, 600);
 	if (!platform)
 		die("Failed to create platform\n");
 
@@ -564,8 +559,8 @@ main(int argc, char *argv[])
 
 	/* Cleanup (reverse order of initialization) */
 	platform_destroy(platform);
-	arena_destroy(&arena);
 	syntax_destroy(app.syntax);
+	arena_destroy(&app_arena);
 	buffer_destroy(&app.buffer);
 
 	dbg("Clean shutdown\n");

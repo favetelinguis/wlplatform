@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <core/arena.h>
 #include <core/str.h>
 
 struct syntax_ctx; /* Opaque to hide treesitter details */
@@ -35,7 +36,7 @@ struct syntax_visible {
 	int count;
 };
 
-struct syntax_ctx *syntax_create(void);
+struct syntax_ctx *syntax_create(struct arena *a);
 void syntax_destroy(struct syntax_ctx *ctx);
 
 /* Parse using str - takes view, no copy needed */

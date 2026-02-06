@@ -9,6 +9,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <core/str.h>
+
 #define UI_INPUT_MAX_LEN 1024
 
 struct ui_input {
@@ -19,7 +21,7 @@ struct ui_input {
 };
 
 void ui_input_init(struct ui_input *input);
-void ui_input_set_text(struct ui_input *input, const char *text);
+void ui_input_set_text(struct ui_input *input, struct str text);
 const char *ui_input_get_text(struct ui_input *input);
 bool ui_input_handle_key(struct ui_input *in,
 			 uint32_t keysym,

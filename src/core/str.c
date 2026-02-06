@@ -123,7 +123,8 @@ str_find(struct str s, struct str needle)
 	int search_len = s.len - needle.len + 1;
 	for (int i = 0; i < search_len; i++) {
 		if (memcmp(s.data + i, needle.data, (size_t)needle.len) == 0) {
-			return (struct str_search_result){.index = i, .found = true};
+			return (struct str_search_result){.index = i,
+							  .found = true};
 		}
 	}
 
@@ -134,7 +135,8 @@ struct str_search_result
 str_rfind(struct str s, struct str needle)
 {
 	if (needle.len == 0) {
-		return (struct str_search_result){.index = s.len, .found = true};
+		return (struct str_search_result){.index = s.len,
+						  .found = true};
 	}
 	if (needle.len > s.len) {
 		return (struct str_search_result){.index = 0, .found = false};
@@ -144,23 +146,9 @@ str_rfind(struct str s, struct str needle)
 	for (int i = s.len - needle.len; i >= 0; i--) {
 		if (memcmp(s.data + i, needle.data, (size_t)needle.len) == 0) {
 			return (struct str_search_result){.index = i,
-						   .found = true};
+							  .found = true};
 		}
 	}
 
 	return (struct str_search_result){.index = 0, .found = false};
-}
-
-char *
-str_to_cstr(struct str s)
-{
-	// Allocate buffer with space for null terminator
-	char *buf = xmalloc((size_t)s.len + 1);
-
-	if (s.len > 0) {
-		memcpy(buf, s.data, (size_t)s.len);
-	}
-	buf[s.len] = '\0';
-
-	return buf;
 }

@@ -1,10 +1,9 @@
 #include <editor/syntax.h>
 
-#include <stdlib.h>
 #include <string.h>
 #include <tree_sitter/api.h>
 
-#include <core/memory.h>
+#include <core/arena.h>
 
 extern const TSLanguage *tree_sitter_markdown(void);
 
@@ -14,19 +13,16 @@ struct syntax_ctx {
 };
 
 struct syntax_ctx *
-syntax_create(void)
+syntax_create(struct arena *a)
 {
-	struct syntax_ctx *ctx = xcalloc(1, sizeof(*ctx));
+	struct syntax_ctx *ctx = arena_new0(a, struct syntax_ctx);
 
 	ctx->parser = ts_parser_new();
-	if (!ctx->parser) {
-		xfree(ctx);
+	if (!ctx->parser)
 		return NULL;
-	}
 
 	if (!ts_parser_set_language(ctx->parser, tree_sitter_markdown())) {
 		ts_parser_delete(ctx->parser);
-		xfree(ctx);
 		return NULL;
 	}
 	return ctx;
@@ -41,7 +37,6 @@ syntax_destroy(struct syntax_ctx *ctx)
 		ts_tree_delete(ctx->tree);
 	if (ctx->parser)
 		ts_parser_delete(ctx->parser);
-	free(ctx);
 }
 
 bool
