@@ -1,10 +1,10 @@
-#include "syntax.h"
+#include <editor/syntax.h>
 
 #include <stdlib.h>
 #include <string.h>
 #include <tree_sitter/api.h>
 
-#include "core/memory.h"
+#include <core/memory.h>
 
 extern const TSLanguage *tree_sitter_markdown(void);
 

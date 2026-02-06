@@ -1,11 +1,11 @@
-#include "ui_avy.h"
+#include <ui/ui_avy.h>
 
 #include <ctype.h>
 #include <string.h>
 
-#include "../render/render_font.h"
-#include "../render/render_primitives.h"
-#include "ui_label.h"
+#include <render/render_font.h>
+#include <render/render_primitives.h>
+#include <ui/ui_label.h>
 
 #define ZENBURN_BLUE                                                          \
 	0xFF8CD0D3 /* TODO this should live with all other theme colors and   \
@@ -36,14 +36,7 @@ avy_cancel(struct avy_state *avy)
 }
 
 /*
- * Generate gint strings from n matches.
- *
- * Algorithm:
- * - If n <= 9: use single characters (a, s, d, f ,g ,h ,j ,k ,l)
- * - If n > 9: use two-character combinations (aa, as, ad, ..., ll)
- *
- *
- * Hints are assigned in order so matches[0] gets "a" or "aa"
+ * Generate hint strings from n matches.
  */
 static void
 generate_hints(struct avy_match *matches, int n)
@@ -57,7 +50,7 @@ generate_hints(struct avy_match *matches, int n)
 			matches[i].hint[1] = '\0';
 		}
 	} else {
-		/* Two character gints */
+		/* Two character hints */
 		idx = 0;
 		for (i = 0; i < hint_chars_len && idx < n; i++) {
 			for (j = 0; j < hint_chars_len && idx < n; j++) {
@@ -72,8 +65,6 @@ generate_hints(struct avy_match *matches, int n)
 
 /*
  * Check if position col is at the start of a word.
- * Word start: col 0 or previous char is not a word character.
- * Word characters: alphanumeric and underscore (C identifier rules)
  */
 static bool
 is_word_start(const char *data, int len, int col)
@@ -89,13 +80,13 @@ is_word_start(const char *data, int len, int col)
 void
 avy_set_char(struct avy_state *avy,
 	     char c,
-	     struct buffer *buf,
+	     const struct str *lines,
+	     int line_count,
 	     int cursor_line,
 	     int first_visible,
 	     int last_visible)
 {
 	int line_num, col;
-	struct str line;
 	const char *data;
 	int len;
 
@@ -108,9 +99,10 @@ avy_set_char(struct avy_state *avy,
 		     line_num >= first_visible &&
 		     avy->match_count < AVY_MAX_MATCHES;
 		     line_num--) {
-			line = buffer_get_line(buf, line_num);
-			data = str_data(line);
-			len = str_len(line);
+			if (line_num < 0 || line_num >= line_count)
+				continue;
+			data = str_data(lines[line_num]);
+			len = str_len(lines[line_num]);
 
 			for (col = 0; col < len; col++) {
 				/* Match exact case at word starts only */
@@ -133,9 +125,10 @@ avy_set_char(struct avy_state *avy,
 		     line_num <= last_visible &&
 		     avy->match_count < AVY_MAX_MATCHES;
 		     line_num++) {
-			line = buffer_get_line(buf, line_num);
-			data = str_data(line);
-			len = str_len(line);
+			if (line_num < 0 || line_num >= line_count)
+				continue;
+			data = str_data(lines[line_num]);
+			len = str_len(lines[line_num]);
 
 			for (col = 0; col < len; col++) {
 				/* Match exact case at word starts only */
@@ -158,19 +151,6 @@ avy_set_char(struct avy_state *avy,
 	generate_hints(avy->matches, avy->match_count);
 }
 
-/*
- * Process hint character input.
- *
- * Algorithm: Linear scan with prefix matching.
- *
- * We chose linear scan over a trie because:
- * 1. n <= 100 matches, scanned at most twice (2 chars max)
- * 2. Simple array fits in L1 cache (1.2 KB)
- * 3. strncmp on 2-byte strings is essentially free
- * 4. Code simplicity trumps micro-optimization here
- *
- * See "Data Structure Analysis" section for full rationale.
- */
 bool
 avy_input_hint(struct avy_state *avy, char c)
 {
@@ -185,10 +165,6 @@ avy_input_hint(struct avy_state *avy, char c)
 	avy->hint_input[avy->hint_input_len++] = c;
 	avy->hint_input[avy->hint_input_len] = '\0';
 
-	/*
-	 * Linear scan: count matches with matching prefix.
-	 * O(n) where n <= 100, with excellent cache behavior.
-	 */
 	candidates = 0;
 	last_candidate = -1;
 	for (i = 0; i < avy->match_count; i++) {
@@ -236,11 +212,11 @@ avy_draw_hints(struct ui_ctx *ctx,
 	int char_w, line_h;
 	int hint_len, hint_w;
 	struct avy_match *m;
-	struct ui_rect bg;
+	ui_rect bg;
 
 	/* Get character width (monospace assumption) */
-	char_w = font_char_index_to_x(ctx->font, STR_LIT("M"), 1);
-	line_h = font_get_line_height(ctx->font);
+	char_w = font_char_index_to_x(ctx->render.font, STR_LIT("M"), 1);
+	line_h = font_get_line_height(ctx->render.font);
 
 	for (i = 0; i < avy->match_count; i++) {
 		m = &avy->matches[i];
@@ -263,7 +239,7 @@ avy_draw_hints(struct ui_ctx *ctx,
 		bg.y = y;
 		bg.w = hint_w;
 		bg.h = line_h;
-		draw_rect(ctx, bg, ctx->theme.bg_active);
+		draw_rect(&ctx->render, bg, ctx->theme.bg_active);
 
 		/* Draw hint text in blue */
 		ui_label_draw_colored(

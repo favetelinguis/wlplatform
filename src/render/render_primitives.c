@@ -1,10 +1,9 @@
-#include "render_primitives.h"
+#include <render/render_primitives.h>
 
-#include "../render/render_font.h"
-#include "../ui/ui.h"
+#include <render/render_font.h>
 
 void
-draw_rect(struct ui_ctx *ctx, struct ui_rect r, uint32_t color)
+draw_rect(struct render_ctx *ctx, struct render_rect r, uint32_t color)
 {
 	int x, y;
 	int x0, y0, x1, y1;
@@ -23,15 +22,15 @@ draw_rect(struct ui_ctx *ctx, struct ui_rect r, uint32_t color)
 }
 
 void
-draw_rect_outline(struct ui_ctx *ctx,
-		  struct ui_rect r,
+draw_rect_outline(struct render_ctx *ctx,
+		  struct render_rect r,
 		  uint32_t color,
 		  int thickness)
 {
-	struct ui_rect top = {r.x, r.y, r.w, thickness};
-	struct ui_rect bottom = {r.x, r.y + r.h - thickness, r.w, thickness};
-	struct ui_rect left = {r.x, r.y, thickness, r.h};
-	struct ui_rect right = {r.x + r.w - thickness, r.y, thickness, r.h};
+	struct render_rect top = {r.x, r.y, r.w, thickness};
+	struct render_rect bottom = {r.x, r.y + r.h - thickness, r.w, thickness};
+	struct render_rect left = {r.x, r.y, thickness, r.h};
+	struct render_rect right = {r.x + r.w - thickness, r.y, thickness, r.h};
 
 	draw_rect(ctx, top, color);
 	draw_rect(ctx, bottom, color);
@@ -40,16 +39,15 @@ draw_rect_outline(struct ui_ctx *ctx,
 }
 
 void
-draw_text(struct ui_ctx *ctx,
-	  struct font_ctx *font,
+draw_text(struct render_ctx *ctx,
 	  int x,
 	  int y,
 	  struct str text,
 	  uint32_t color)
 {
-	/* y is top-left, but font_draw_text expect baseline */
-	int baseline_y = y + font_get_ascent(font);
-	font_draw_text(font,
+	/* y is top-left, but font_draw_text expects baseline */
+	int baseline_y = y + font_get_ascent(ctx->font);
+	font_draw_text(ctx->font,
 		       ctx->fb->pixels,
 		       ctx->fb->width,
 		       ctx->fb->height,

@@ -1,227 +1,90 @@
-# CLAUDE.md
+# C Vibe
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Wayland text editor written in C99 with arena memory management, tree-sitter syntax highlighting, and avy-style jump navigation.
 
-## Build Commands
-
-```bash
-make        # Build the application
-make run    # Build and run
-make clean  # Remove build artifacts
-```
-
-Output binary: `bin/app`
-
-## Architecture
-
-This is an ASCII-only, keyboard-driven Wayland application written in C99 with software rendering.
-
-### Module Structure
+## Build
 
 ```
+make clean && make       # build with sanitizers (asan, ubsan, leak)
+make run                 # build and run
+make -C tests            # run unit tests (test_arena, test_astr, test_afile)
+```
+
+Compiler: gcc, C99, `-Wall -Wextra -Wpedantic` with `-fsanitize=address,undefined,leak`.
+Vendor code is compiled separately without sanitizers (`VENDOR_CFLAGS`).
+
+## Project Structure
+
+Headers live in `include/<module>/`, sources in `src/<module>/`.
+All includes use angle brackets via `-Iinclude`: `#include <module/header.h>`.
+
+```
+include/
+  core/       Layer 0    str.h arena.h astr.h memory.h error.h afile.h
+  render/     Layer 1    render_types.h render_font.h render_primitives.h
+  platform/   Layer 2    platform.h
+  editor/     Layer 3    buffer.h view.h syntax.h
+  ui/         Layer 4    ui.h ui_types.h ui_ctx.h ui_label.h ui_input.h
+                         ui_button.h ui_panel.h ui_avy.h ui_menu_ast.h
+                         ui_menu_actions.h
+
 src/
-├── main.c                      # Application entry, event loop, UI layout
-├── buffer/
-│   └── buffer.[ch]             # Text buffer (line array, cursor, file I/O)
-├── platform/
-│   ├── platform.h              # Platform abstraction API
-│   └── platform_wayland.c      # Wayland implementation (double-buffered)
-├── protocols/
-│   └── xdg-shell.[ch]          # Auto-generated Wayland protocol bindings
-├── render/
-│   ├── render_font.[ch]        # stb_truetype-based text rendering
-│   └── render_primitives.[ch]  # Rectangle and text drawing primitives
-├── string/
-│   ├── str.[ch]                # Immutable string view (non-owning, pass by value)
-│   ├── str_buf.[ch]            # Mutable string buffer (owning, heap-allocated)
-│   └── arena.[ch]              # Bump allocator for batch allocations
-├── syntax/
-│   └── syntax.[ch]             # Tree-sitter parsing (markdown via vendored parser)
-├── view/
-│   └── view.[ch]               # Visible line range calculation
-└── ui/
-    ├── ui.h                    # Unified include for all UI components
-    ├── ui_types.h              # Common types (ui_rect, ui_theme, ui_ctx)
-    ├── ui_ctx.[ch]             # Rendering context, Zenburn theme
-    ├── ui_label.[ch]           # Text labels (normal, muted, accent)
-    ├── ui_input.[ch]           # Single-line text input with readline bindings
-    ├── ui_menu_ast.[ch]        # AST debug view in menu area
-    ├── ui_avy.[ch]             # Avy-style jump navigation overlay
-    ├── ui_menu_actions.[ch]    # Action menu for avy targets
-    ├── ui_button.[ch]          # Keyboard-focusable buttons (legacy)
-    └── ui_panel.[ch]           # Panel/container backgrounds (legacy)
+  core/       str.c arena.c astr.c memory.c error.c afile.c
+  render/     render_font.c render_primitives.c
+  platform/   platform_wayland.c  protocols/xdg-shell.{c,h}
+  editor/     buffer.c view.c syntax.c
+  ui/         ui_ctx.c ui_label.c ui_input.c ui_button.c ui_panel.c
+              ui_avy.c ui_menu_ast.c ui_menu_actions.c
+  main.c
 ```
 
-### Key Design Decisions
+## Architecture: Layered Dependencies
 
-- **Keyboard-only**: No mouse/pointer support by design
-- **Wayland-native**: Uses xdg-shell protocol, won't work on X11
-- **Immediate-mode rendering**: Direct pixel manipulation into XRGB8888 framebuffer
-- **Double buffering**: Two buffers managed by Wayland compositor
-- **ASCII text only**: Font renderer supports characters 32-126, glyph atlas 512x512
-- **Single-focus model**: One text input always focused, no focus cycling needed
-- **String abstractions**: Use `str` (non-owning view) and `str_buf` (owning buffer), not raw `char *`
-
-### Application Modes
-
-The application uses a mode system to handle different input states:
-
-| Mode | Description |
-|------|-------------|
-| `MODE_NORMAL` | Normal editing mode |
-| `MODE_AVY_CHAR` | Waiting for avy search character |
-| `MODE_AVY_HINT` | Displaying hints, waiting for hint selection |
-| `MODE_AVY_ACTION` | Target selected, waiting for action key |
-
-Mode transitions are triggered by keybindings and affect how input is processed and what is rendered in the menu area.
-
-### UI Layout
-
-The application has a static, three-region layout:
+Strict layered model. No upward or circular dependencies allowed.
 
 ```
-┌─────────────────────────────────────────────┐
-│  Buffer context (lines ABOVE cursor)        │  ← Secondary color
-│  ...                                        │
-│  previous line                              │
-├─────────────────────────────────────────────┤
-│  INPUT BOX (current line, always focused)   │  ← Primary color, highlighted bg
-│  ▌cursor                                    │
-├─────────────────────────────────────────────┤
-│  next line                                  │  ← Secondary color
-│  ...                                        │
-│  Buffer context (lines BELOW cursor)        │
-├─────────────────────────────────────────────┤
-│                                             │
-│  MENU AREA (15 lines high)                  │  ← Varies based on input state
-│  Context-sensitive commands/options         │
-│                                             │
-└─────────────────────────────────────────────┘
+Layer 0  core/      -> (nothing)
+Layer 1  render/    -> core/
+Layer 2  platform/  -> core/, render/
+Layer 3  editor/    -> core/
+Layer 4  ui/        -> core/, render/, platform/, editor/
+         main.c     -> everything
 ```
 
-**Layout details:**
+**When adding new code, respect these rules:**
+- A header in layer N must never include a header from layer N+1 or above.
+- `render/` must not include `platform/`, `editor/`, or `ui/`.
+- `editor/` must not include `render/`, `platform/`, or `ui/`.
+- `platform/` must not include `editor/` or `ui/`.
 
-- **Input box**: Vertically centered, full window width, contains current buffer line with cursor. Always focused (no focus cycling).
-- **Buffer context**: Lines above and below input show surrounding file content. Number of visible lines adapts to window height.
-- **Menu area**: Fixed 15-line height (`MENU_ROWS`) at bottom. Content varies depending on input state (command mode, search mode, etc.).
+## Key Design Patterns
 
-**Rendering** (`main.c:render()`):
-1. Calculate input box position (vertically centered)
-2. Calculate available lines above/below based on remaining space
-3. Draw buffer lines above (previous lines, secondary color)
-4. Draw input box (highlighted background, primary text, cursor)
-5. Draw buffer lines below (next lines, secondary color)
-6. Draw menu panel at bottom
+### Render context threading
+`struct render_ctx` (framebuffer + font) is embedded in `struct ui_ctx` (render + theme).
+Render primitives take `struct render_ctx *`. UI functions take `struct ui_ctx *` and pass `&ctx->render` down to render calls.
 
-### Data Flow
+### Rect types
+`struct render_rect` is defined in `render_types.h`. UI code uses `typedef struct render_rect ui_rect;` from `ui_types.h`.
 
-1. Wayland keyboard events → event queue (ring buffer, 64 max)
-2. Main loop blocks on `platform_wait_events()` until input arrives (0% CPU when idle)
-3. Process events, update app state, set `needs_redraw` flag
-4. Render to framebuffer via `platform_get_framebuffer()` using UI components
-5. Present via `platform_present()` → `wl_surface_commit()`
+### Framebuffer ownership
+`struct framebuffer` is defined in `render_types.h` (Layer 1). Platform creates and manages the actual pixel buffer but the type lives at the render layer so render primitives can use it without depending on platform.
 
-### UI Component Pattern
+### Avy decoupling
+`ui_avy` does not depend on `editor/buffer`. The `avy_set_char()` function takes `const struct str *lines, int line_count` instead of a buffer pointer. The caller (main.c) passes `buffer->lines` and `buffer->line_count`.
 
-UI components follow an immediate-mode pattern with `ui_ctx` passed to all draw functions:
+### Memory management
+- Arena allocator (`core/arena.h`) is the primary allocator for buffer content and line arrays.
+- `core/memory.h` wraps malloc/free with `xmalloc`/`xcalloc`/`xfree` (abort on failure).
+- `core/str.h` is a non-owning string view (`const char *data` + `int len`).
+- `core/astr.h` provides arena-allocated string operations.
 
-```c
-struct ui_ctx ctx;
-ui_ctx_init(&ctx, fb, font);
-ui_ctx_clear(&ctx);
+## Known Quirks
 
-/* Draw text input (text + cursor) */
-ui_label_draw_colored(&ctx, x, y, app->input.buf, ctx.theme.fg_primary);
-int cursor_x = x + font_char_index_to_x(ctx.font, app->input.buf, app->input.cursor);
-draw_rect(&ctx, (struct ui_rect){cursor_x, y, 2, line_height}, ctx.theme.accent);
-```
-
-Components use a Zenburn color theme defined in `ui_types.h`.
-
-### Text Input Component (`ui_input`)
-
-The input component displays the current buffer line and handles text editing. It is always focused and supports readline/emacs keybindings:
-
-| Binding | Action |
-|---------|--------|
-| `Ctrl-A` | Beginning of line |
-| `Ctrl-E` | End of line |
-| `Ctrl-F` / `Right` | Forward char |
-| `Ctrl-B` / `Left` | Backward char |
-| `Alt-F` | Forward word |
-| `Alt-B` | Backward word |
-| `Ctrl-D` / `Delete` | Delete char |
-| `Backspace` / `Ctrl-H` | Delete backward |
-| `Ctrl-K` | Kill to end of line |
-| `Ctrl-U` | Kill to beginning |
-| `Ctrl-W` | Kill word backward |
-| `Alt-D` | Kill word forward |
-
-**Buffer navigation** (handled before input):
-
-| Binding | Action |
-|---------|--------|
-| `Ctrl-N` | Move to next line |
-| `Ctrl-P` | Move to previous line |
-
-**Avy navigation** (jump to visible text):
-
-| Binding | Action |
-|---------|--------|
-| `Alt-;` | Start avy search upward |
-| `Alt-'` | Start avy search downward |
-| `j` | Jump to target (in action mode) |
-| `Escape` | Cancel avy mode |
-
-**Key handling pattern**: Input component handles keys first via `ui_input_handle_key()`. Returns `true` if consumed, `false` to pass to global handlers (Escape, Ctrl-Q).
-
-```c
-/* In handle_key() */
-if (ui_input_handle_key(&app->input, key, mods, codepoint)) {
-    return true;  /* Input consumed the key */
-}
-/* Fall through to global keys */
-```
-
-**State structure** (caller-owned, no heap allocation):
-
-```c
-struct ui_input {
-    char buf[256];      /* Fixed buffer, NUL-terminated */
-    int len;            /* Current length */
-    int cursor;         /* Cursor position (0 to len) */
-    int scroll_offset;  /* Horizontal scroll for long text */
-};
-```
-
-**Rendering** is inlined in `main.c`'s `render()` function (not a separate draw function) since layout is application-specific.
-
-## Code Style
-
-Follows suckless.org C99 style, enforced by `.clang-format`:
-- Tabs for indentation (8 spaces width)
-- 79 character line limit
-- Return type on separate line for function definitions
-- Pointer asterisk adjacent to variable name: `char *p`
+- `platform.h` uses an anonymous union in `struct platform_event` (C11 extension accepted by gcc in C99 mode, triggers `-Wpedantic` warning).
+- Wayland callback functions have many unused parameters (inherent to the Wayland API, triggers `-Wunused-parameter` warnings).
+- `stb_truetype.h` include in `render_font.c` uses a relative path to vendor/.
 
 ## Dependencies
 
-System (via pkg-config): `wayland-client`, `xkbcommon`
-
-Vendored in `vendor/`:
-- `stb/stb_truetype` - Font rasterization
-- `tree-sitter/` - Incremental parsing library
-- `tree-sitter-markdown/` - Markdown grammar
-
-Install on Debian/Ubuntu:
-```bash
-sudo apt-get install libwayland-dev libxkbcommon-dev pkg-config build-essential
-```
-
-## Development Notes
-
-- Address/undefined/leak sanitizers enabled by default for app code
-- Vendor code compiled without sanitizers to avoid false positives
-- Event-driven rendering: only redraws when `needs_redraw` is set (no continuous loop)
-- Format code with: `clang-format -i src/**/*.c src/**/*.h`
-- Use the `c-programming` skill when writing C code in this project
+- **System:** wayland-client, xkbcommon (via pkg-config)
+- **Vendor:** stb_truetype (font rendering), tree-sitter + tree-sitter-markdown (syntax parsing)

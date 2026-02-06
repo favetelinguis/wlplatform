@@ -1,6 +1,6 @@
-#include "ui_ctx.h"
+#include <ui/ui_ctx.h>
 
-#include "../render/render_font.h"
+#include <render/render_font.h>
 
 struct ui_theme
 ui_theme_zenburn(void)
@@ -31,8 +31,8 @@ ui_theme_zenburn(void)
 void
 ui_ctx_init(struct ui_ctx *ctx, struct framebuffer *fb, struct font_ctx *font)
 {
-	ctx->fb = fb;
-	ctx->font = font;
+	ctx->render.fb = fb;
+	ctx->render.font = font;
 	ctx->theme = ui_theme_zenburn();
 }
 
@@ -40,9 +40,9 @@ void
 ui_ctx_clear(struct ui_ctx *ctx)
 {
 	int i;
-	int total = ctx->fb->width * ctx->fb->height;
+	int total = ctx->render.fb->width * ctx->render.fb->height;
 
 	for (i = 0; i < total; i++) {
-		ctx->fb->pixels[i] = ctx->theme.bg_primary;
+		ctx->render.fb->pixels[i] = ctx->theme.bg_primary;
 	}
 }

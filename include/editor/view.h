@@ -1,3 +1,9 @@
+/* include/editor/view.h
+ *
+ * Viewport / scrolling logic.
+ * Layer 3 - depends on core/ only.
+ */
+
 #ifndef VIEW_H
 #define VIEW_H
 
@@ -13,8 +19,6 @@ struct view {
 };
 
 void view_init(struct view *v);
-
-/* Returns true if visible range changed */
 bool view_update(struct view *v,
 		 int cursor_line,
 		 int line_count,
@@ -22,4 +26,4 @@ bool view_update(struct view *v,
 		 int line_h,
 		 int menu_h);
 
-#endif
+#endif /* VIEW_H */

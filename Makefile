@@ -18,29 +18,14 @@ CFLAGS += -Iinclude
 VENDOR_CFLAGS = -std=c99 -Wall -O2
 VENDOR_CFLAGS += -Ivendor/tree-sitter/lib/include -Ivendor/tree-sitter/lib/src
 
-# Source files
-SRCS = src/main.c \
-       src/platform/platform_wayland.c \
-       src/protocols/xdg-shell.c \
-       src/render/render_font.c \
-       src/render/render_primitives.c \
-       src/buffer/buffer.c \
-       src/ui/ui_ctx.c \
-       src/ui/ui_label.c \
-       src/ui/ui_button.c \
-       src/ui/ui_input.c \
-       src/ui/ui_panel.c \
-       src/ui/ui_menu_ast.c \
-       src/ui/ui_menu_actions.c \
-       src/ui/ui_avy.c \
-       src/syntax/syntax.c \
-       src/view/view.c \
-       src/core/error.c \
-       src/core/memory.c \
-       src/core/str.c \
-       src/core/arena.c \
-       src/core/astr.c \
-       src/core/afile.c
+# Source files (wildcard per module)
+SRCS  = src/main.c
+SRCS += $(wildcard src/core/*.c)
+SRCS += $(wildcard src/render/*.c)
+SRCS += $(wildcard src/platform/*.c)
+SRCS += $(wildcard src/platform/protocols/*.c)
+SRCS += $(wildcard src/editor/*.c)
+SRCS += $(wildcard src/ui/*.c)
 
 # Vendor source files (compile without sanitizers)
 VENDOR_SRCS = vendor/stb/stb_truetype.c
@@ -48,35 +33,35 @@ VENDOR_SRCS += vendor/tree-sitter/lib/src/lib.c \
                vendor/tree-sitter-markdown/src/parser.c \
                vendor/tree-sitter-markdown/src/scanner.c
 
-# Object files (in bin/ directory)
-OBJS = $(SRCS:%.c=bin/%.o)
-VENDOR_OBJS = $(VENDOR_SRCS:%.c=bin/%.o)
+# Object files (in build/ directory)
+OBJS = $(SRCS:%.c=build/%.o)
+VENDOR_OBJS = $(VENDOR_SRCS:%.c=build/%.o)
 
 # Default target
-all: bin/$(BIN_NAME)
+all: build/$(BIN_NAME)
 
 # Link
-bin/$(BIN_NAME): $(OBJS) $(VENDOR_OBJS)
+build/$(BIN_NAME): $(OBJS) $(VENDOR_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 
 
 # Compile application sources (with sanitizers)
-bin/src/%.o: src/%.c
+build/src/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 # Compile vendor sources (without sanitizers to avoid false positives)
-bin/vendor/%.o: vendor/%.c
+build/vendor/%.o: vendor/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(VENDOR_CFLAGS) -c -o $@ $<
 
 # Clean
 clean:
-	rm -rf bin/
+	rm -rf build/
 
 # Run
 run: all
-	./bin/$(BIN_NAME)
+	./build/$(BIN_NAME)
 
 .PHONY: all clean run

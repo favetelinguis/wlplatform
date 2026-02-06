@@ -1,9 +1,9 @@
-#include "buffer.h"
+#include <editor/buffer.h>
 
 #include <string.h>
 
-#include "core/afile.h"
-#include "core/arena.h"
+#include <core/afile.h>
+#include <core/arena.h>
 
 #define INITIAL_LINE_CAP 256
 
@@ -23,7 +23,12 @@ void
 buffer_destroy(struct buffer *buf)
 {
 	arena_destroy(&buf->arena);
-	buffer_init(buf);
+	buf->text = STR_EMPTY;
+	buf->lines = NULL;
+	buf->line_count = 0;
+	buf->line_cap = 0;
+	buf->cursor_line = 0;
+	buf->path[0] = '\0';
 }
 
 bool

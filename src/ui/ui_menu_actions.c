@@ -1,19 +1,19 @@
-#include "ui_menu_actions.h"
+#include <ui/ui_menu_actions.h>
 
 #include <stdio.h>
 #include <string.h>
 
-#include "../render/render_font.h"
-#include "../render/render_primitives.h"
 #include <core/str.h>
-#include "ui_label.h"
+#include <render/render_font.h>
+#include <render/render_primitives.h>
+#include <ui/ui_label.h>
 
 /* Zenburn blue for action highlights */
 #define ZENBURN_BLUE 0xFF8CD0D3
 
 void
 menu_actions_draw(struct ui_ctx *ctx,
-		  struct ui_rect rect,
+		  ui_rect rect,
 		  struct avy_match *match,
 		  struct str line_text,
 		  const struct syntax_visible *ast)
@@ -25,13 +25,13 @@ menu_actions_draw(struct ui_ctx *ctx,
 	const struct syntax_node *node;
 	const struct syntax_node *containing;
 
-	line_h = font_get_line_height(ctx->font);
+	line_h = font_get_line_height(ctx->render.font);
 	y = rect.y;
 	x = 8;
 	containing = NULL;
 
 	/* Background */
-	draw_rect(ctx, rect, ctx->theme.bg_secondary);
+	draw_rect(&ctx->render, rect, ctx->theme.bg_secondary);
 
 	/* Header */
 	ui_label_draw_colored(

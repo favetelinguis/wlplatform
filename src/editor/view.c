@@ -1,4 +1,4 @@
-#include "view.h"
+#include <editor/view.h>
 
 void
 view_init(struct view *v)

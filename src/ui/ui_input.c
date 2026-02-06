@@ -1,9 +1,9 @@
-#include "ui_input.h"
+#include <ui/ui_input.h>
 
 #include <string.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 
-#include "../platform/platform.h" /* For MOD_CTRL, MOD_ALT */
+#include <platform/platform.h> /* For MOD_CTRL, MOD_ALT */
 
 /* ============================================================
  * LIFECYCLE

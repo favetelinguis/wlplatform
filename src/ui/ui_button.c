@@ -1,10 +1,10 @@
-#include "ui_button.h"
+#include <ui/ui_button.h>
 
 #include <stddef.h>
 
-#include "../render/render_primitives.h"
 #include <core/str.h>
-#include "ui_label.h"
+#include <render/render_primitives.h>
+#include <ui/ui_label.h>
 
 struct ui_button_cfg
 ui_button_cfg_default(const char *label)
@@ -22,7 +22,7 @@ ui_button_cfg_default(const char *label)
 
 void
 ui_button_draw(struct ui_ctx *ctx,
-	       struct ui_rect rect,
+	       ui_rect rect,
 	       struct ui_button_cfg *cfg)
 {
 	bool focused, active;
@@ -44,23 +44,23 @@ ui_button_draw(struct ui_ctx *ctx,
 	}
 
 	/* Draw background */
-	draw_rect(ctx, rect, bg_color);
+	draw_rect(&ctx->render, rect, bg_color);
 
 	/* Draw focus indicator (left bar) */
 	if (focused && cfg->focus_indicator_width > 0) {
-		struct ui_rect indicator = {
+		ui_rect indicator = {
 		    rect.x, rect.y, cfg->focus_indicator_width, rect.h};
-		draw_rect(ctx, indicator, ctx->theme.accent);
+		draw_rect(&ctx->render, indicator, ctx->theme.accent);
 	}
 
 	/* Draw focus ring */
 	if (focused) {
-		struct ui_rect ring = {
+		ui_rect ring = {
 		    rect.x - 2, rect.y - 2, rect.w + 4, rect.h + 4};
-		draw_rect_outline(ctx, ring, ctx->theme.accent, 2);
+		draw_rect_outline(&ctx->render, ring, ctx->theme.accent, 2);
 	}
 
-	/* Draw lebel text */
+	/* Draw label text */
 	text_color = focused ? ctx->theme.fg_primary : ctx->theme.fg_secondary;
 	text_height = ui_label_height(ctx);
 	text_y = rect.y + (rect.h - text_height) / 2;

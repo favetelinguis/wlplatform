@@ -14,8 +14,8 @@
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>
 
-#include "../protocols/xdg-shell.h"
-#include "platform.h"
+#include "protocols/xdg-shell.h"
+#include <platform/platform.h>
 
 /* ============================================================
  * CONSTANTS

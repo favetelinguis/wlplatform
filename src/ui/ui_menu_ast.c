@@ -1,11 +1,11 @@
-#include "ui_menu_ast.h"
+#include <ui/ui_menu_ast.h>
 
 #include <stdio.h>
 #include <string.h>
 
-#include "../render/render_primitives.h"
-#include "../ui/ui_label.h"
-#include "../ui/ui_panel.h"
+#include <render/render_primitives.h>
+#include <ui/ui_label.h>
+#include <ui/ui_panel.h>
 
 #define INDENT_SPACES	 2
 #define MAX_LINE	 128
@@ -13,7 +13,7 @@
 
 void
 menu_ast_draw(struct ui_ctx *ctx,
-	      struct ui_rect rect,
+	      ui_rect rect,
 	      const struct syntax_visible *visible,
 	      int cursor_row)
 {

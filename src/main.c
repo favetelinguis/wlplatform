@@ -4,18 +4,18 @@
 #include <unistd.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 
-#include "buffer/buffer.h"
-#include "core/error.h"
-#include "core/str.h"
-#include "platform/platform.h"
-#include "render/render_font.h"
-#include "render/render_primitives.h"
-#include "syntax/syntax.h"
-#include "ui/ui.h"
-#include "ui/ui_avy.h"
-#include "ui/ui_menu_actions.h"
-#include "ui/ui_panel.h"
-#include "view/view.h"
+#include <core/error.h>
+#include <core/str.h>
+#include <editor/buffer.h>
+#include <editor/syntax.h>
+#include <editor/view.h>
+#include <platform/platform.h>
+#include <render/render_font.h>
+#include <render/render_primitives.h>
+#include <ui/ui.h>
+#include <ui/ui_avy.h>
+#include <ui/ui_menu_actions.h>
+#include <ui/ui_panel.h>
 
 #define MENU_ROWS 15
 
@@ -201,7 +201,8 @@ handle_key_avy_char(struct app_state *app,
 	if (codepoint >= 32 && codepoint < 127) {
 		avy_set_char(&app->avy,
 			     (char)codepoint,
-			     &app->buffer,
+			     app->buffer.lines,
+			     app->buffer.line_count,
 			     app->buffer.cursor_line,
 			     app->view.first_visible_line,
 			     app->view.last_visible_line);
@@ -382,8 +383,8 @@ render(struct app_state *app, struct framebuffer *fb)
 	/* Draw input box */
 	{
 		int cursor_x;
-		struct ui_rect input_bg = {0, input_y, fb->width, input_h};
-		draw_rect(&ctx, input_bg, ctx.theme.bg_hover);
+		ui_rect input_bg = {0, input_y, fb->width, input_h};
+		draw_rect(&ctx.render, input_bg, ctx.theme.bg_hover);
 
 		int text_y = input_y + (input_h - line_h) / 2;
 		ui_label_draw_colored(&ctx,
@@ -392,11 +393,11 @@ render(struct app_state *app, struct framebuffer *fb)
 				      str_from_cstr(app->input.buf),
 				      ctx.theme.fg_primary);
 
-		cursor_x = padding_x + font_char_index_to_x(ctx.font,
+		cursor_x = padding_x + font_char_index_to_x(ctx.render.font,
 							    str_from_cstr(app->input.buf),
 							    app->input.cursor);
-		struct ui_rect cursor_rect = {cursor_x, text_y, 2, line_h};
-		draw_rect(&ctx, cursor_rect, ctx.theme.accent);
+		ui_rect cursor_rect = {cursor_x, text_y, 2, line_h};
+		draw_rect(&ctx.render, cursor_rect, ctx.theme.accent);
 	}
 
 	/* Draw lines below cursor */
@@ -430,7 +431,7 @@ render(struct app_state *app, struct framebuffer *fb)
 
 	/* Draw menu area (switches based on mode) */
 	{
-		struct ui_rect menu_rect;
+		ui_rect menu_rect;
 		menu_rect.x = 0;
 		menu_rect.y = fb->height - menu_h;
 		menu_rect.w = fb->width;

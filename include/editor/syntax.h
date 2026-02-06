@@ -1,3 +1,9 @@
+/* include/editor/syntax.h
+ *
+ * Tree-sitter based syntax parsing.
+ * Layer 3 - depends on core/ only.
+ */
+
 #ifndef SYNTAX_H
 #define SYNTAX_H
 
@@ -32,11 +38,11 @@ struct syntax_visible {
 struct syntax_ctx *syntax_create(void);
 void syntax_destroy(struct syntax_ctx *ctx);
 
-/* Parse using str - takes view, no copy neded */
+/* Parse using str - takes view, no copy needed */
 bool syntax_parse(struct syntax_ctx *ctx, struct str source);
 bool syntax_has_tree(struct syntax_ctx *ctx);
 
-/* Get nodes intersection row range */
+/* Get nodes intersecting row range */
 void syntax_get_visible_nodes(struct syntax_ctx *ctx,
 			      struct str source,
 			      uint32_t start_row,
@@ -46,4 +52,4 @@ void syntax_get_visible_nodes(struct syntax_ctx *ctx,
 /* Get text for a node using str_slice (zero-copy) */
 struct str syntax_node_text(struct syntax_node *node, struct str source);
 
-#endif /* SYNATX_H */
+#endif /* SYNTAX_H */

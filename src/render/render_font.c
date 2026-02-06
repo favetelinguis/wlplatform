@@ -1,12 +1,12 @@
-#include "render_font.h"
+#include <render/render_font.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "../../vendor/stb/stb_truetype.h"
-#include "core/memory.h"
-#include "core/str.h"
+#include <core/memory.h>
+#include <core/str.h>
 
 /* ============================================================
  * CONSTANTS
@@ -228,7 +228,7 @@ get_glyph(struct font_ctx *font, int codepoint)
 		return NULL;
 	}
 
-	/* Render glyph directrly into atlas */
+	/* Render glyph directly into atlas */
 	bitmap = font->atlas.pixels + atlas_y * font->atlas.width + atlas_x;
 	stbtt_MakeCodepointBitmap(&font->info,
 				  bitmap,
@@ -303,7 +303,7 @@ font_create(const char *path, int size_px)
 		return NULL;
 	}
 
-	/* Pre-cach ASCII characters */
+	/* Pre-cache ASCII characters */
 	for (c = CACHE_START; c < CACHE_END; c++) {
 		get_glyph(font, c);
 	}
