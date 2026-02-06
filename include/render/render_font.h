@@ -11,6 +11,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <core/arena.h>
 #include <core/str.h>
 
 struct font_ctx; /* Opaque */
@@ -22,8 +23,7 @@ struct text_metrics {
 	int descent;
 };
 
-struct font_ctx *font_create(const char *path, int size_px);
-void font_destroy(struct font_ctx *font);
+struct font_ctx *font_create(struct arena *a, const char *path, int size_px);
 
 void font_draw_text(struct font_ctx *font,
 		    uint32_t *pixels,

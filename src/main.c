@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 
+#include <core/arena.h>
 #include <core/error.h>
 #include <core/str.h>
 #include <editor/buffer.h>
@@ -467,6 +468,7 @@ int
 main(int argc, char *argv[])
 {
 	struct platform *platform;
+	struct arena arena;
 	struct app_state app = {0};
 	const char *filepath;
 
@@ -496,7 +498,8 @@ main(int argc, char *argv[])
 	}
 
 	/* Load font */
-	app.font = font_create("assets/fonts/JetBrainsMono-Regular.ttf", 20);
+	arena_init(&arena);
+	app.font = font_create(&arena, "assets/fonts/JetBrainsMono-Regular.ttf", 20);
 	if (!app.font)
 		die("Failed to load font\n");
 
@@ -561,7 +564,7 @@ main(int argc, char *argv[])
 
 	/* Cleanup (reverse order of initialization) */
 	platform_destroy(platform);
-	font_destroy(app.font);
+	arena_destroy(&arena);
 	syntax_destroy(app.syntax);
 	buffer_destroy(&app.buffer);
 

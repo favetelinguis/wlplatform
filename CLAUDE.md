@@ -1,6 +1,6 @@
 # C Vibe
 
-Wayland text editor written in C99 with arena memory management, tree-sitter syntax highlighting, and avy-style jump navigation.
+Wayland text editor written in C99 with arena memory management, tree-sitter structual editing, and avy-style jump navigation.
 
 ## Build
 

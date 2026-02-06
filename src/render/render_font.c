@@ -1,11 +1,10 @@
 #include <render/render_font.h>
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "../../vendor/stb/stb_truetype.h"
-#include <core/memory.h>
+#include <core/afile.h>
 #include <core/str.h>
 
 /* ============================================================
@@ -73,48 +72,11 @@ struct font_ctx {
 };
 
 /* ============================================================
- * FILE LOADING
- * ============================================================ */
-static unsigned char *
-load_file(const char *path, size_t *out_size)
-{
-	FILE *f;
-	unsigned char *data;
-	long size;
-
-	f = fopen(path, "rb");
-	if (!f) {
-		return NULL;
-	}
-	fseek(f, 0, SEEK_END);
-	size = ftell(f);
-	fseek(f, 0, SEEK_SET);
-
-	if (size <= 0) {
-		fclose(f);
-		return NULL;
-	}
-	data = xmalloc(size);
-
-	if (fread(data, 1, size, f) != (size_t)size) {
-		xfree(data);
-		fclose(f);
-		return NULL;
-	}
-	fclose(f);
-
-	if (out_size) {
-		*out_size = (size_t)size;
-	}
-	return data;
-}
-
-/* ============================================================
  * ATLAS MANAGEMENT
  * ============================================================ */
 
-static bool
-atlas_init(struct glyph_atlas *atlas)
+static void
+atlas_init(struct arena *a, struct glyph_atlas *atlas)
 {
 	atlas->width = ATLAS_WIDTH;
 	atlas->height = ATLAS_HEIGHT;
@@ -122,18 +84,7 @@ atlas_init(struct glyph_atlas *atlas)
 	atlas->cursor_y = GLYPH_PADDING;
 	atlas->row_height = 0;
 
-	atlas->pixels = xcalloc(atlas->width * atlas->height, sizeof(uint8_t));
-	if (!atlas->pixels) {
-		return false;
-	}
-	return true;
-}
-
-static void
-atlas_destroy(struct glyph_atlas *atlas)
-{
-	xfree(atlas->pixels);
-	atlas->pixels = NULL;
+	atlas->pixels = arena_array0(a, uint8_t, atlas->width * atlas->height);
 }
 
 /*
@@ -258,31 +209,30 @@ get_glyph(struct font_ctx *font, int codepoint)
  * ============================================================ */
 
 struct font_ctx *
-font_create(const char *path, int size_px)
+font_create(struct arena *a, const char *path, int size_px)
 {
 	struct font_ctx *font;
+	struct afile_result fr;
 	int ascent, descent, line_gap;
 	int c;
 
-	font = xcalloc(1, sizeof(*font));
+	font = arena_new0(a, struct font_ctx);
 
 	font->size_px = size_px;
 
 	/* Load font file */
-	font->font_data = load_file(path, NULL);
-	if (!font->font_data) {
+	fr = afile_read(a, path);
+	if (fr.error) {
 		fprintf(stderr, "Failed to load font file '%s'\n", path);
-		xfree(font);
 		return NULL;
 	}
+	font->font_data = (unsigned char *)fr.content.data;
 
 	/* Initialize stb_truetype */
 	if (!stbtt_InitFont(&font->info,
 			    font->font_data,
 			    stbtt_GetFontOffsetForIndex(font->font_data, 0))) {
 		fprintf(stderr, "Failed to initialize font '%s'\n", path);
-		xfree(font->font_data);
-		xfree(font);
 		return NULL;
 	}
 
@@ -297,11 +247,7 @@ font_create(const char *path, int size_px)
 	font->line_height = font->ascent + font->descent + font->line_gap;
 
 	/* Initialize glyph atlas */
-	if (!atlas_init(&font->atlas)) {
-		xfree(font->font_data);
-		xfree(font);
-		return NULL;
-	}
+	atlas_init(a, &font->atlas);
 
 	/* Pre-cache ASCII characters */
 	for (c = CACHE_START; c < CACHE_END; c++) {
@@ -309,18 +255,6 @@ font_create(const char *path, int size_px)
 	}
 
 	return font;
-}
-
-void
-font_destroy(struct font_ctx *font)
-{
-	if (!font) {
-		return;
-	}
-
-	atlas_destroy(&font->atlas);
-	xfree(font->font_data);
-	xfree(font);
 }
 
 /*
