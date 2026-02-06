@@ -4,6 +4,8 @@
 #include <string.h>
 #include <tree_sitter/api.h>
 
+#include "core/memory.h"
+
 extern const TSLanguage *tree_sitter_markdown(void);
 
 struct syntax_ctx {
@@ -14,19 +16,17 @@ struct syntax_ctx {
 struct syntax_ctx *
 syntax_create(void)
 {
-	struct syntax_ctx *ctx = calloc(1, sizeof(*ctx));
-	if (!ctx)
-		return NULL;
+	struct syntax_ctx *ctx = xcalloc(1, sizeof(*ctx));
 
 	ctx->parser = ts_parser_new();
 	if (!ctx->parser) {
-		free(ctx);
+		xfree(ctx);
 		return NULL;
 	}
 
 	if (!ts_parser_set_language(ctx->parser, tree_sitter_markdown())) {
 		ts_parser_delete(ctx->parser);
-		free(ctx);
+		xfree(ctx);
 		return NULL;
 	}
 	return ctx;
@@ -45,7 +45,7 @@ syntax_destroy(struct syntax_ctx *ctx)
 }
 
 bool
-syntax_parse(struct syntax_ctx *ctx, str source)
+syntax_parse(struct syntax_ctx *ctx, struct str source)
 {
 	TSTree *new_tree;
 
@@ -71,8 +71,8 @@ syntax_has_tree(struct syntax_ctx *ctx)
 }
 
 /* Zero-copy text extraction using str_slice */
-str
-syntax_node_text(struct syntax_node *node, str source)
+struct str
+syntax_node_text(struct syntax_node *node, struct str source)
 {
 	return str_slice(source, node->start_byte, node->end_byte);
 }
@@ -80,7 +80,7 @@ syntax_node_text(struct syntax_node *node, str source)
 /* Recursive helper to collect visible nodes */
 static void
 collect_nodes(TSNode node,
-	      str source,
+	      struct str source,
 	      uint32_t start_row,
 	      uint32_t end_row,
 	      int depth,
@@ -140,7 +140,7 @@ collect_nodes(TSNode node,
 
 void
 syntax_get_visible_nodes(struct syntax_ctx *ctx,
-			 str source,
+			 struct str source,
 			 uint32_t start_row,
 			 uint32_t end_row,
 			 struct syntax_visible *out)

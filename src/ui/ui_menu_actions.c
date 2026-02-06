@@ -5,7 +5,7 @@
 
 #include "../render/render_font.h"
 #include "../render/render_primitives.h"
-#include "../string/str.h"
+#include <core/str.h>
 #include "ui_label.h"
 
 /* Zenburn blue for action highlights */
@@ -15,7 +15,7 @@ void
 menu_actions_draw(struct ui_ctx *ctx,
 		  struct ui_rect rect,
 		  struct avy_match *match,
-		  str line_text,
+		  struct str line_text,
 		  const struct syntax_visible *ast)
 {
 	int line_h;
@@ -51,7 +51,7 @@ menu_actions_draw(struct ui_ctx *ctx,
 	/* Show line preview (truncated) */
 	{
 		int max_preview = 60;
-		int len = (int)str_len(line_text);
+		int len = str_len(line_text);
 		if (len > max_preview) {
 			snprintf(buf,
 				 sizeof(buf),

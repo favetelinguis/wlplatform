@@ -1,12 +1,3 @@
-/* main.c
- *
- * Single-line input demo.
- *
- * Controls:
- *   Standard readline bindings for text editing
- *   Escape / Ctrl+Q - Quit
- */
-
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,10 +5,11 @@
 #include <xkbcommon/xkbcommon-keysyms.h>
 
 #include "buffer/buffer.h"
+#include "core/error.h"
+#include "core/str.h"
 #include "platform/platform.h"
 #include "render/render_font.h"
 #include "render/render_primitives.h"
-#include "string/str.h"
 #include "syntax/syntax.h"
 #include "ui/ui.h"
 #include "ui/ui_avy.h"
@@ -74,7 +66,7 @@ struct app_state {
 static void
 sync_input_to_buffer(struct app_state *app)
 {
-	str line;
+	struct str line;
 	char *cstr;
 
 	line = buffer_get_current_line(&app->buffer);
@@ -189,7 +181,7 @@ handle_key_normal(struct app_state *app,
 		}
 		break;
 	case XKB_KEY_Return:
-		printf("Submitted: %s\n", ui_input_get_text(&app->input));
+		warn("Submitted: %s\n", ui_input_get_text(&app->input));
 		return false;
 	}
 
@@ -294,7 +286,7 @@ handle_key_avy_action(struct app_state *app,
 static void
 execute_jump_action(struct app_state *app, struct avy_match *match)
 {
-	str line;
+	struct str line;
 	char *cstr;
 
 	/* Move buffer cursor to target line */
@@ -324,7 +316,7 @@ render(struct app_state *app, struct framebuffer *fb)
 	int input_y, input_h;
 	int lines_above, lines_below;
 	int y, i, line_num;
-	str line;
+	struct str line;
 	int padding_x = 8;
 
 	/*
@@ -351,12 +343,13 @@ render(struct app_state *app, struct framebuffer *fb)
 			line_h,
 			menu_h)) {
 		if (syntax_has_tree(app->syntax)) {
-			str source = buffer_get_text(&app->buffer);
-			syntax_get_visible_nodes(app->syntax,
-						 source,
-						 (uint32_t)app->view.first_visible_line,
-						 (uint32_t)app->view.last_visible_line,
-						 &app->visible_ast);
+			struct str source = buffer_get_text(&app->buffer);
+			syntax_get_visible_nodes(
+			    app->syntax,
+			    source,
+			    (uint32_t)app->view.first_visible_line,
+			    (uint32_t)app->view.last_visible_line,
+			    &app->visible_ast);
 		}
 	}
 
@@ -400,7 +393,7 @@ render(struct app_state *app, struct framebuffer *fb)
 				      ctx.theme.fg_primary);
 
 		cursor_x = padding_x + font_char_index_to_x(ctx.font,
-							    app->input.buf,
+							    str_from_cstr(app->input.buf),
 							    app->input.cursor);
 		struct ui_rect cursor_rect = {cursor_x, text_y, 2, line_h};
 		draw_rect(&ctx, cursor_rect, ctx.theme.accent);
@@ -447,7 +440,7 @@ render(struct app_state *app, struct framebuffer *fb)
 			/* Show action menu with target context */
 			struct avy_match *match = avy_get_selected(&app->avy);
 			if (match) {
-				str target_line =
+				struct str target_line =
 				    buffer_get_line(&app->buffer, match->line);
 				menu_actions_draw(&ctx,
 						  menu_rect,
@@ -481,37 +474,30 @@ main(int argc, char *argv[])
 	avy_init(&app.avy);
 
 	/* Print PID for easy killing */
-	printf("PID: %d\n", getpid());
+	dbg("PID: %d\n", getpid());
 
 	/* Require filename argument */
-	if (argc < 2) {
-		fprintf(stderr, "Usage: %s <file>\n", argv[0]);
-		return 1;
-	}
+	if (argc < 2)
+		die("Usage: %s <file>\n", argv[0]);
 	filepath = argv[1];
 
 	/* Initialize buffer and load file */
 	buffer_init(&app.buffer);
-	if (!buffer_load(&app.buffer, filepath)) {
-		fprintf(stderr, "Failed to load: %s\n", filepath);
-		return 1;
-	}
+	if (!buffer_load(&app.buffer, filepath))
+		die("Failed to load: %s\n", filepath);
 
 	view_init(&app.view);
 
 	app.syntax = syntax_create();
 	if (app.syntax) {
-		str source = buffer_get_text(&app.buffer);
+		struct str source = buffer_get_text(&app.buffer);
 		syntax_parse(app.syntax, source);
 	}
 
 	/* Load font */
 	app.font = font_create("assets/fonts/JetBrainsMono-Regular.ttf", 20);
-	if (!app.font) {
-		fprintf(stderr, "Failed to load font\n");
-		buffer_destroy(&app.buffer);
-		return 1;
-	}
+	if (!app.font)
+		die("Failed to load font\n");
 
 	/* Initialize input with first line */
 	ui_input_init(&app.input);
@@ -527,11 +513,8 @@ main(int argc, char *argv[])
 
 	/* Create window */
 	platform = platform_create("Input Demo", 800, 600);
-	if (!platform) {
-		fprintf(stderr, "Failed to create platform\n");
-		font_destroy(app.font);
-		return 1;
-	}
+	if (!platform)
+		die("Failed to create platform\n");
 
 	printf("=== Single-Line Input Demo ===\n");
 	printf("Type text. Readline shortcuts work.\n");
@@ -542,7 +525,8 @@ main(int argc, char *argv[])
 		struct platform_event ev;
 
 		if (app.needs_redraw) {
-			struct framebuffer *fb = platform_get_framebuffer(platform);
+			struct framebuffer *fb =
+			    platform_get_framebuffer(platform);
 			if (fb) {
 				render(&app, fb);
 				platform_present(platform);
@@ -580,6 +564,6 @@ main(int argc, char *argv[])
 	syntax_destroy(app.syntax);
 	buffer_destroy(&app.buffer);
 
-	printf("Clean shutdown\n");
+	dbg("Clean shutdown\n");
 	return 0;
 }

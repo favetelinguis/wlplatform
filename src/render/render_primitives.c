@@ -44,7 +44,7 @@ draw_text(struct ui_ctx *ctx,
 	  struct font_ctx *font,
 	  int x,
 	  int y,
-	  const char *text,
+	  struct str text,
 	  uint32_t color)
 {
 	/* y is top-left, but font_draw_text expect baseline */

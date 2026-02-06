@@ -1,9 +1,3 @@
-/* src/render/render_font.c
- *
- * Font loading and text rendering implementation using stb_truetype.
- * ASCII-only for simplicity.
- */
-
 #include "render_font.h"
 
 #include <stdio.h>
@@ -11,6 +5,8 @@
 #include <string.h>
 
 #include "../../vendor/stb/stb_truetype.h"
+#include "core/memory.h"
+#include "core/str.h"
 
 /* ============================================================
  * CONSTANTS
@@ -98,14 +94,10 @@ load_file(const char *path, size_t *out_size)
 		fclose(f);
 		return NULL;
 	}
-	data = malloc(size);
-	if (!data) {
-		fclose(f);
-		return NULL;
-	}
+	data = xmalloc(size);
 
 	if (fread(data, 1, size, f) != (size_t)size) {
-		free(data);
+		xfree(data);
 		fclose(f);
 		return NULL;
 	}
@@ -130,7 +122,7 @@ atlas_init(struct glyph_atlas *atlas)
 	atlas->cursor_y = GLYPH_PADDING;
 	atlas->row_height = 0;
 
-	atlas->pixels = calloc(atlas->width * atlas->height, sizeof(uint8_t));
+	atlas->pixels = xcalloc(atlas->width * atlas->height, sizeof(uint8_t));
 	if (!atlas->pixels) {
 		return false;
 	}
@@ -140,7 +132,7 @@ atlas_init(struct glyph_atlas *atlas)
 static void
 atlas_destroy(struct glyph_atlas *atlas)
 {
-	free(atlas->pixels);
+	xfree(atlas->pixels);
 	atlas->pixels = NULL;
 }
 
@@ -272,10 +264,7 @@ font_create(const char *path, int size_px)
 	int ascent, descent, line_gap;
 	int c;
 
-	font = calloc(1, sizeof(*font));
-	if (!font) {
-		return NULL;
-	}
+	font = xcalloc(1, sizeof(*font));
 
 	font->size_px = size_px;
 
@@ -283,7 +272,7 @@ font_create(const char *path, int size_px)
 	font->font_data = load_file(path, NULL);
 	if (!font->font_data) {
 		fprintf(stderr, "Failed to load font file '%s'\n", path);
-		free(font);
+		xfree(font);
 		return NULL;
 	}
 
@@ -292,8 +281,8 @@ font_create(const char *path, int size_px)
 			    font->font_data,
 			    stbtt_GetFontOffsetForIndex(font->font_data, 0))) {
 		fprintf(stderr, "Failed to initialize font '%s'\n", path);
-		free(font->font_data);
-		free(font);
+		xfree(font->font_data);
+		xfree(font);
 		return NULL;
 	}
 
@@ -309,8 +298,8 @@ font_create(const char *path, int size_px)
 
 	/* Initialize glyph atlas */
 	if (!atlas_init(&font->atlas)) {
-		free(font->font_data);
-		free(font);
+		xfree(font->font_data);
+		xfree(font);
 		return NULL;
 	}
 
@@ -330,8 +319,8 @@ font_destroy(struct font_ctx *font)
 	}
 
 	atlas_destroy(&font->atlas);
-	free(font->font_data);
-	free(font);
+	xfree(font->font_data);
+	xfree(font);
 }
 
 /*
@@ -380,25 +369,25 @@ font_draw_text(struct font_ctx *font,
 	       int fb_height,
 	       int x,
 	       int y,
-	       const char *text,
+	       struct str text,
 	       uint32_t color)
 {
 	int pen_x;
 	int i;
 
-	if (!font || !pixels || !text) {
+	if (!font || !pixels) {
 		return;
 	}
 
 	pen_x = x;
 
-	for (i = 0; text[i] != '\0'; i++) {
+	for (i = 0; i < text.len; i++) {
 		struct glyph_info *glyph;
 		int draw_x, draw_y;
 		int row, col;
 		int c;
 
-		c = (unsigned char)text[i];
+		c = (unsigned char)text.data[i];
 
 		glyph = get_glyph(font, c);
 		if (!glyph) {
@@ -448,7 +437,7 @@ font_draw_text_selected(struct font_ctx *font,
 			int fb_height,
 			int x,
 			int y,
-			const char *text,
+			struct str text,
 			uint32_t color,
 			int sel_start,
 			int sel_end,
@@ -457,19 +446,19 @@ font_draw_text_selected(struct font_ctx *font,
 	int pen_x;
 	int i;
 
-	if (!font || !pixels || !text) {
+	if (!font || !pixels) {
 		return;
 	}
 
 	pen_x = x;
 
-	for (i = 0; text[i] != '\0'; i++) {
+	for (i = 0; i < text.len; i++) {
 		struct glyph_info *glyph;
 		int char_start_x;
 		bool in_selection;
 		int c;
 
-		c = (unsigned char)text[i];
+		c = (unsigned char)text.data[i];
 		char_start_x = pen_x;
 
 		glyph = get_glyph(font, c);
@@ -542,23 +531,23 @@ font_draw_text_selected(struct font_ctx *font,
 
 int
 font_measure_text(struct font_ctx *font,
-		  const char *text,
+		  struct str text,
 		  struct text_metrics *out)
 {
 	int width;
 	int i;
 
-	if (!font || !text) {
+	if (!font || !text.data) {
 		return 0;
 	}
 
 	width = 0;
 
-	for (i = 0; text[i] != '\0'; i++) {
+	for (i = 0; i < text.len; i++) {
 		struct glyph_info *glyph;
 		int c;
 
-		c = (unsigned char)text[i];
+		c = (unsigned char)text.data[i];
 		glyph = get_glyph(font, c);
 		if (glyph) {
 			width += glyph->advance_x;
@@ -576,22 +565,22 @@ font_measure_text(struct font_ctx *font,
 }
 
 int
-font_char_index_to_x(struct font_ctx *font, const char *text, int index)
+font_char_index_to_x(struct font_ctx *font, struct str text, int index)
 {
 	int x;
 	int i;
 
-	if (!font || !text || index <= 0) {
+	if (!font || !text.data || index <= 0) {
 		return 0;
 	}
 
 	x = 0;
 
-	for (i = 0; text[i] != '\0' && i < index; i++) {
+	for (i = 0; i < text.len && i < index; i++) {
 		struct glyph_info *glyph;
 		int c;
 
-		c = (unsigned char)text[i];
+		c = (unsigned char)text.data[i];
 		glyph = get_glyph(font, c);
 		if (glyph) {
 			x += glyph->advance_x;
@@ -602,24 +591,24 @@ font_char_index_to_x(struct font_ctx *font, const char *text, int index)
 }
 
 int
-font_x_to_char_index(struct font_ctx *font, const char *text, int target_x)
+font_x_to_char_index(struct font_ctx *font, struct str text, int target_x)
 {
 	int x;
 	int prev_x;
 	int i;
 
-	if (!font || !text || target_x <= 0) {
+	if (!font || !text.data || target_x <= 0) {
 		return 0;
 	}
 
 	x = 0;
 	prev_x = 0;
 
-	for (i = 0; text[i] != '\0'; i++) {
+	for (i = 0; i < text.len; i++) {
 		struct glyph_info *glyph;
 		int c;
 
-		c = (unsigned char)text[i];
+		c = (unsigned char)text.data[i];
 		glyph = get_glyph(font, c);
 		if (glyph) {
 			x += glyph->advance_x;

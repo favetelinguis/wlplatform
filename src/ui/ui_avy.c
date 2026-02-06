@@ -95,7 +95,7 @@ avy_set_char(struct avy_state *avy,
 	     int last_visible)
 {
 	int line_num, col;
-	str line;
+	struct str line;
 	const char *data;
 	int len;
 
@@ -110,7 +110,7 @@ avy_set_char(struct avy_state *avy,
 		     line_num--) {
 			line = buffer_get_line(buf, line_num);
 			data = str_data(line);
-			len = (int)str_len(line);
+			len = str_len(line);
 
 			for (col = 0; col < len; col++) {
 				/* Match exact case at word starts only */
@@ -135,7 +135,7 @@ avy_set_char(struct avy_state *avy,
 		     line_num++) {
 			line = buffer_get_line(buf, line_num);
 			data = str_data(line);
-			len = (int)str_len(line);
+			len = str_len(line);
 
 			for (col = 0; col < len; col++) {
 				/* Match exact case at word starts only */
@@ -239,7 +239,7 @@ avy_draw_hints(struct ui_ctx *ctx,
 	struct ui_rect bg;
 
 	/* Get character width (monospace assumption) */
-	char_w = font_char_index_to_x(ctx->font, "M", 1);
+	char_w = font_char_index_to_x(ctx->font, STR_LIT("M"), 1);
 	line_h = font_get_line_height(ctx->font);
 
 	for (i = 0; i < avy->match_count; i++) {

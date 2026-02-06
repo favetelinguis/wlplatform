@@ -48,13 +48,14 @@ menu_ast_draw(struct ui_ctx *ctx,
 
 		/* Prepare text preview for leaf nodes */
 		if (!str_empty(n->text)) {
-			size_t preview_len = str_len(n->text);
+			int preview_len = str_len(n->text);
 			if (preview_len > MAX_TEXT_PREVIEW)
 				preview_len = MAX_TEXT_PREVIEW;
 
-			memcpy(text_preview, str_data(n->text), preview_len);
+			memcpy(text_preview, str_data(n->text),
+			       (size_t)preview_len);
 			/* Replace newlines with visible marker */
-			for (size_t j = 0; j < preview_len; j++) {
+			for (int j = 0; j < preview_len; j++) {
 				if (text_preview[j] == '\n')
 					text_preview[j] = ' ';
 			}

@@ -12,6 +12,7 @@
 #ifndef RENDER_FONT_H
 #define RENDER_FONT_H
 
+#include <core/str.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -80,7 +81,7 @@ void font_draw_text(struct font_ctx *font,
 		    int fb_height,
 		    int x,
 		    int y,
-		    const char *text,
+		    struct str text,
 		    uint32_t color);
 
 /*
@@ -98,7 +99,7 @@ void font_draw_text_selected(struct font_ctx *font,
 			     int fb_height,
 			     int x,
 			     int y,
-			     const char *text,
+			     struct str text,
 			     uint32_t color,
 			     int sel_start,
 			     int sel_end,
@@ -117,7 +118,7 @@ void font_draw_text_selected(struct font_ctx *font,
  * @return        Width in pixels
  */
 int font_measure_text(struct font_ctx *font,
-		      const char *text,
+		      struct str text,
 		      struct text_metrics *out);
 
 /*
@@ -129,7 +130,7 @@ int font_measure_text(struct font_ctx *font,
  * @param index   Character index into text
  * @return        X offset from start of text
  */
-int font_char_index_to_x(struct font_ctx *font, const char *text, int index);
+int font_char_index_to_x(struct font_ctx *font, struct str text, int index);
 
 /*
  * Get character index at given X position.
@@ -140,7 +141,7 @@ int font_char_index_to_x(struct font_ctx *font, const char *text, int index);
  * @param x       X offset from start of text
  * @return        Character index into text
  */
-int font_x_to_char_index(struct font_ctx *font, const char *text, int x);
+int font_x_to_char_index(struct font_ctx *font, struct str text, int x);
 
 /* ============================================================
  * FONT METRICS

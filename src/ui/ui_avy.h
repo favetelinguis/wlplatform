@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #include "../buffer/buffer.h"
-#include "../string/str.h"
+#include <core/str.h>
 #include "ui_types.h"
 
 /*

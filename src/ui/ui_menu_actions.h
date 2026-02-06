@@ -12,7 +12,7 @@
 void menu_actions_draw(struct ui_ctx *ctx,
 		       struct ui_rect rect,
 		       struct avy_match *match,
-		       str line_text,
+		       struct str line_text,
 		       const struct syntax_visible *ast);
 
 #endif /* UI_MENU_ACTIONS_H */

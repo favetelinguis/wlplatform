@@ -3,8 +3,8 @@
 
 #include <stdbool.h>
 
-#include "../string/str.h"
-#include "../string/str_buf.h"
+#include "core/arena.h"
+#include "core/str.h"
 
 #define BUFFER_PATH_MAX 4096
 #define BUFFER_LINE_MAX 4096 /* Max line length we handle */
@@ -12,11 +12,11 @@
 struct buffer {
 	char path[BUFFER_PATH_MAX]; /* Absolute path to file */
 
-	str_buf *text;	/* Owned file content (contiguous, maintains null
-			   termination) */
-	str *lines;	/* Line index: array of str views into text */
-	int line_count; /* Number of lines */
-	int line_cap;	/* Allocated capacity */
+	struct arena arena; /* Arena holding file content */
+	struct str text;    /* Full file content (view into arena) */
+	struct str *lines;  /* Line index: array of str views into text */
+	int line_count;	    /* Number of lines */
+	int line_cap;	    /* Allocated capacity */
 
 	int cursor_line; /* Current line (0-indexed, shown in input) */
 };
@@ -42,21 +42,18 @@ void buffer_destroy(struct buffer *buf);
 bool buffer_load(struct buffer *buf, const char *path);
 
 /* Get full text for parsing */
-str buffer_get_text(struct buffer *buf);
+struct str buffer_get_text(struct buffer *buf);
 
 /*
  * Get line at given index.
  * Return NULL if index out of bounds.
  */
-str buffer_get_line(struct buffer *buf, int line_num);
+struct str buffer_get_line(struct buffer *buf, int line_num);
 
 /*
  * Get current line (at cursor_line)
  */
-str buffer_get_current_line(struct buffer *buf);
-
-/* For C string APIs (UI labels that need null-terminated) */
-const char *buffer_get_text_cstr(struct buffer *buf);
+struct str buffer_get_current_line(struct buffer *buf);
 
 /*
  * Move cursor down by n lines (scroll buffer up throgh input).

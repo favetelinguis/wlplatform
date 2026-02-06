@@ -1,18 +1,12 @@
-/* platform/platform_wayland.c
- *
- * Wayland implementation of the platform abstraction layer.
- * KEYBOARD ONLY - no mouse/pointer support.
- */
-
 #define _POSIX_C_SOURCE 200809L
 
+#include <core/memory.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
 #include <time.h>
 #include <unistd.h>
 #include <wayland-client-core.h>
@@ -233,11 +227,7 @@ create_buffer(struct platform *p,
 	}
 
 	buf->pixels =
-	    mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, buf->fd, 0);
-	if (buf->pixels == MAP_FAILED) {
-		close(buf->fd);
-		return false;
-	}
+	    xmmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, buf->fd, 0);
 
 	pool = wl_shm_create_pool(p->shm, buf->fd, size);
 	buf->wl_buffer = wl_shm_pool_create_buffer(
@@ -260,7 +250,7 @@ destroy_buffer(struct buffer_entry *buf)
 		buf->wl_buffer = NULL;
 	}
 	if (buf->pixels && buf->pixels != MAP_FAILED) {
-		munmap(buf->pixels, buf->size);
+		xmunmap(buf->pixels, buf->size);
 		buf->pixels = NULL;
 	}
 	if (buf->fd >= 0) {
@@ -328,7 +318,7 @@ xdg_toplevel_configure(void *data,
 			destroy_buffer(&p->buffers[i]);
 		}
 
-		p->width = width = width;
+		p->width = width;
 		p->height = height;
 
 		for (i = 0; i < BUFFER_COUNT; i++) {
@@ -389,11 +379,7 @@ keyboard_keymap(void *data,
 		return;
 	}
 
-	map_shm = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
-	if (map_shm == MAP_FAILED) {
-		close(fd);
-		return;
-	}
+	map_shm = xmmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
 
 	/* Clean up old state */
 	if (p->xkb_keymap) {
@@ -409,7 +395,7 @@ keyboard_keymap(void *data,
 				       XKB_KEYMAP_FORMAT_TEXT_V1,
 				       XKB_KEYMAP_COMPILE_NO_FLAGS);
 
-	munmap(map_shm, size);
+	xmunmap(map_shm, size);
 	close(fd);
 
 	if (p->xkb_keymap) {
@@ -687,10 +673,7 @@ platform_create(const char *title, int width, int height)
 	struct platform *p;
 	int i;
 
-	p = calloc(1, sizeof(*p));
-	if (!p) {
-		return NULL;
-	}
+	p = xcalloc(1, sizeof(*p));
 
 	/* Initialize buffer fds to invalid */
 	for (i = 0; i < BUFFER_COUNT; i++) {
@@ -703,7 +686,7 @@ platform_create(const char *title, int width, int height)
 	p->display = wl_display_connect(NULL);
 	if (!p->display) {
 		fprintf(stderr, "Failed to connect to Wayland display\n");
-		free(p);
+		xfree(p);
 		return NULL;
 	}
 
@@ -712,7 +695,7 @@ platform_create(const char *title, int width, int height)
 	if (!p->xkb_context) {
 		fprintf(stderr, "Failed to create XKB context\n");
 		wl_display_disconnect(p->display);
-		free(p);
+		xfree(p);
 		return NULL;
 	}
 
@@ -830,7 +813,7 @@ platform_destroy(struct platform *p)
 		wl_display_disconnect(p->display);
 	}
 
-	free(p);
+	xfree(p);
 }
 
 bool

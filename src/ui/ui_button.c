@@ -3,7 +3,7 @@
 #include <stddef.h>
 
 #include "../render/render_primitives.h"
-#include "../string/str.h"
+#include <core/str.h>
 #include "ui_label.h"
 
 struct ui_button_cfg
@@ -70,7 +70,7 @@ ui_button_draw(struct ui_ctx *ctx,
 
 	/* Draw status text if present */
 	if (cfg->status_text) {
-		str status = str_from_cstr(cfg->status_text);
+		struct str status = str_from_cstr(cfg->status_text);
 		int status_width = ui_label_width(ctx, status);
 		int status_x = rect.x + rect.w - status_width - cfg->padding_x;
 

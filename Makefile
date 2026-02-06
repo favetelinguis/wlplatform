@@ -12,6 +12,7 @@ LIBS += -lrt -lm
 # Include vendor libraries
 CFLAGS += -Ivendor/stb
 CFLAGS += -Ivendor/tree-sitter/lib/include -Ivendor/tree-sitter/lib/src
+CFLAGS += -Iinclude
 
 # Vendor flags: no sanitizers, but needs tree-sitter includes
 VENDOR_CFLAGS = -std=c99 -Wall -O2
@@ -23,9 +24,6 @@ SRCS = src/main.c \
        src/protocols/xdg-shell.c \
        src/render/render_font.c \
        src/render/render_primitives.c \
-       src/string/str.c \
-       src/string/str_buf.c \
-       src/string/arena.c \
        src/buffer/buffer.c \
        src/ui/ui_ctx.c \
        src/ui/ui_label.c \
@@ -36,7 +34,13 @@ SRCS = src/main.c \
        src/ui/ui_menu_actions.c \
        src/ui/ui_avy.c \
        src/syntax/syntax.c \
-       src/view/view.c
+       src/view/view.c \
+       src/core/error.c \
+       src/core/memory.c \
+       src/core/str.c \
+       src/core/arena.c \
+       src/core/astr.c \
+       src/core/afile.c
 
 # Vendor source files (compile without sanitizers)
 VENDOR_SRCS = vendor/stb/stb_truetype.c
